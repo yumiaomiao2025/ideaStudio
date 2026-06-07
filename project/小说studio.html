@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<title>小说studio · Wireframes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Kalam:wght@300;400;700&family=Ma+Shan+Zheng&family=Zhi+Mang+Xing&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-2: #4a4a4a;
+    --ink-3: #8a8a8a;
+    --paper: #fafaf6;
+    --paper-2: #f3f1e8;
+    --accent: #d9542b;          /* 朱砂 */
+    --accent-2: #c9a227;        /* 米黄印章 */
+    --rule: #1a1a1a;
+  }
+  html, body { background:#e9e5d8; margin:0; }
+  body { font-family:"Kalam","Ma Shan Zheng",system-ui,sans-serif; color:var(--ink); }
+  .hand-en { font-family:"Caveat", cursive; }
+  .hand-cn { font-family:"Ma Shan Zheng","Zhi Mang Xing", cursive; }
+  .brush   { font-family:"Zhi Mang Xing","Ma Shan Zheng", cursive; }
+  .sans    { font-family:"Noto Sans SC", sans-serif; }
+  .serif   { font-family:"Noto Serif SC", serif; }
+
+  /* --- sketchy primitives ----------------------------------------- */
+  .sk-box {
+    border:1.5px solid var(--rule);
+    background:var(--paper);
+    border-radius:6px 8px 5px 9px / 9px 5px 8px 6px;
+    box-shadow: 1px 2px 0 rgba(0,0,0,0.06);
+  }
+  .sk-box.dashed { border-style:dashed; }
+  .sk-box.thin   { border-width:1px; }
+  .sk-box.thick  { border-width:2.5px; }
+  .sk-box.fill-2 { background:var(--paper-2); }
+  .sk-box.fill-w { background:#fff; }
+  .sk-rule { border:0; border-top:1.5px solid var(--rule); }
+  .sk-rule.dashed { border-top-style:dashed; }
+  .sk-ribbon{
+    display:inline-block; padding:2px 10px;
+    background:var(--accent); color:#fff;
+    border-radius:3px 8px 3px 8px / 8px 3px 8px 3px;
+    transform:rotate(-1.5deg);
+    font-family:"Caveat",cursive; font-weight:700; font-size:18px;
+  }
+  .stamp{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:54px; height:54px;
+    border:2.5px solid var(--accent);
+    color:var(--accent);
+    font-family:"Ma Shan Zheng",serif; font-size:14px; line-height:1.05;
+    text-align:center;
+    border-radius:6px;
+    transform:rotate(-6deg);
+    background:rgba(217,84,43,0.04);
+  }
+  .tag {
+    display:inline-block; padding:1px 8px; border:1.25px solid var(--rule);
+    border-radius:99px; font-family:"Caveat",cursive; font-size:15px; line-height:1.4;
+    background:#fff;
+  }
+  .tag.accent { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tag.warm   { background:#fff2cf; }
+  .squiggle{
+    height:8px; width:100%;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 8'><path d='M0 4 Q5 0 10 4 T20 4 T30 4 T40 4' fill='none' stroke='%231a1a1a' stroke-width='1.2'/></svg>");
+    background-repeat:repeat-x; background-size:40px 8px;
+  }
+  .squiggle.accent{
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 8'><path d='M0 4 Q5 0 10 4 T20 4 T30 4 T40 4' fill='none' stroke='%23d9542b' stroke-width='1.4'/></svg>");
+  }
+  .dot { width:6px;height:6px;border-radius:50%;background:var(--ink);display:inline-block;}
+  .dot.hollow{background:transparent;border:1.2px solid var(--ink);}
+  .check{display:inline-block;width:14px;height:14px;border:1.25px solid var(--ink);border-radius:3px;position:relative;vertical-align:-2px}
+  .check.done::after{content:"✓";position:absolute;left:1px;top:-3px;color:var(--accent);font-weight:700;font-size:14px;font-family:"Caveat";}
+  .arrow{font-family:"Caveat",cursive; color:var(--accent); font-weight:700;}
+  .pin { color:var(--accent); }
+  .muted{color:var(--ink-3);}
+  .ink2{color:var(--ink-2);}
+
+  /* Artboard helpers */
+  .ab { position:relative; width:1280px; height:820px; background:var(--paper); overflow:hidden;
+        background-image:
+          radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px);
+        background-size: 22px 22px;
+        background-position: 0 0;
+  }
+  .ab .titlebar{
+    position:absolute; left:0; right:0; top:0; height:36px;
+    border-bottom:1.5px solid var(--rule);
+    display:flex; align-items:center; gap:10px; padding:0 14px;
+    background:var(--paper-2);
+    font-family:"Caveat",cursive; font-size:18px;
+  }
+  .ab .titlebar .lights{display:flex;gap:6px;margin-right:6px;}
+  .ab .titlebar .lights i{width:10px;height:10px;border-radius:50%;border:1.25px solid var(--rule);background:#fff;display:inline-block;}
+  .annot{
+    position:absolute; pointer-events:none;
+    font-family:"Caveat",cursive; color:var(--accent); font-weight:700;
+    font-size:18px; line-height:1.1;
+    transform:rotate(-3deg);
+  }
+  .annot .lbl{ display:inline-block; padding:2px 6px; background:#fff8e8; border:1.25px dashed var(--accent); border-radius:5px; }
+  .arrowline{
+    position:absolute; pointer-events:none;
+  }
+
+  /* notebook lines for editor area */
+  .ruled{
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 30px,
+      rgba(0,0,0,0.08) 30px,
+      rgba(0,0,0,0.08) 31px
+    );
+  }
+  /* paper corner curl */
+  .corner-curl::after{
+    content:""; position:absolute; right:-1px; bottom:-1px; width:28px; height:28px;
+    background:
+      linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.08) 50%);
+    border-bottom-right-radius:6px;
+  }
+
+  /* Header banner */
+  .header{
+    width:1280px; margin:0 auto; padding:42px 16px 18px;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:24px;
+    font-family:"Caveat",cursive;
+  }
+  .header h1 { margin:0; font-family:"Ma Shan Zheng",serif; font-size:64px; letter-spacing:2px; color:var(--ink); }
+  .header h1 small{ font-family:"Caveat",cursive; font-size:32px; color:var(--accent); margin-left:10px;}
+  .header .sub { font-size:22px; color:var(--ink-2); }
+  .header .meta{ font-size:20px; color:var(--ink-2); text-align:right; max-width:380px;}
+  .legend{
+    width:1280px; margin: 6px auto 0; padding: 12px 16px 28px;
+    display:flex; gap:18px; flex-wrap:wrap; font-family:"Caveat",cursive; font-size:18px; color:var(--ink-2);
+  }
+  .legend .pill{ border:1.25px dashed var(--rule); padding:2px 10px; border-radius:99px; background:#fff;}
+</style>
+
+<script type="application/json" id="design-canvas-data">{
+  "title": "小说studio · 网文 AI 编辑器线框",
+  "sections": []
+}</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>小说studio<small>· wireframes</small></h1>
+    <div class="sub hand-cn" style="font-size:24px; margin-top:4px;">网文 AI 编辑器 · 顶部为可点击高保真原型 · 下方为线框探索 v1.0</div>
+  </div>
+  <div class="meta hand-en">
+    手绘线框 / 黑白 + 朱砂点缀<br/>
+    每个 artboard 可双击放大 · 可拖拽排序
+  </div>
+</div>
+<div class="legend">
+  <span class="pill"><span class="dot"></span> 黑线 = 主结构</span>
+  <span class="pill" style="border-style:solid;"><span class="dot" style="background:#d9542b"></span> 朱砂 = AI / 重点</span>
+  <span class="pill">虚线框 = 占位 / 可选</span>
+  <span class="pill">手写注释 = 交互说明</span>
+</div>
+
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="wireframes.jsx"></script>
+<script type="text/babel" src="v1-fused.jsx"></script>
+<script type="text/babel" src="v1-panels.jsx"></script>
+<script type="text/babel" src="v1-views.jsx"></script>
+<script type="text/babel" src="v1-flows.jsx"></script>
+<script type="text/babel" src="v1-storyboard.jsx"></script>
+<script type="text/babel" src="v1-final.jsx"></script>
+<script type="text/babel" src="v1-publish.jsx"></script>
+<script type="text/babel" src="v1-supplement.jsx"></script>
+<script type="text/babel">
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+  const { W1ThreePane, W2Focus, W3Outline, W4Inline } = window;
+  const { V1Main, V1VarImmersive, V1VarPalette, V1VarDark, V1Bookshelf, V1Character } = window;
+  const { PanelContext, PanelCharacters, PanelWorld, PanelForeshadow, PanelStyle, PanelCompliance } = window;
+  const { V1Kanban, V1Timeline, V1Palette } = window;
+  const { V1Inspect, V1Onboard } = window;
+  const { V1StoryboardAll, Sb1, Sb2, Sb3, Sb4, Sb5, Sb6 } = window;
+  const { V1Health, V1OnboardStep6 } = window;
+  const { V1Publish, V1Analytics } = window;
+  const { V1History, V1Settings } = window;
+
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <DesignCanvas title="" subtitle="" padding={48}>
+      <DCSection id="proto" title="🟢 高保真原型 · 真接 AI" subtitle="可点击 · 真调 Claude 生成续写 · iframe 嵌入 · 也可在新标签页打开">
+        <DCArtboard id="proto-live" label="网文studio · Prototype（可交互 · ⌘K 召唤 AI · Tab 接受续写）" width={1440} height={900}>
+          <div style={{ width: "100%", height: "100%", position: "relative", background: "#faf8f3" }}>
+            <iframe
+              src={encodeURI("网文studio · Prototype.html")}
+              style={{ width: "100%", height: "100%", border: 0, display: "block" }}
+              title="网文studio Prototype"
+            />
+            <a
+              href={encodeURI("网文studio · Prototype.html")}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                position: "absolute",
+                right: 16,
+                top: 16,
+                padding: "6px 12px",
+                background: "rgba(26,24,22,0.85)",
+                color: "#fff",
+                fontFamily: "Noto Sans SC, sans-serif",
+                fontSize: 12,
+                borderRadius: 6,
+                textDecoration: "none",
+                zIndex: 10,
+                pointerEvents: "auto",
+                backdropFilter: "blur(4px)",
+              }}
+            >新标签页打开 ↗</a>
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1" title="主方案 v1 · 融合版" subtitle="把 4 个方向的亮点合成一个写作界面：宣纸舞台 + 行内续写 + ⌘K 浮层 + 章节节拍 + 上下文设定库">
+        <DCArtboard id="v1-main" label="主屏 · 默认状态（左 rail · 右抽屉 · 行内续写）" width={1280} height={820}>
+          <V1Main />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-variants" title="主屏的 3 个状态变体" subtitle="同一个界面在不同写作情境下的样子">
+        <DCArtboard id="v1-immersive" label="A · 最专注（两侧 rail 全收）" width={1280} height={820}>
+          <V1VarImmersive />
+        </DCArtboard>
+        <DCArtboard id="v1-palette" label="B · ⌘K 召唤命令面板（两侧都展开）" width={1280} height={820}>
+          <V1VarPalette />
+        </DCArtboard>
+        <DCArtboard id="v1-dark" label="C · 夜间码字（深色调性）" width={1280} height={820}>
+          <V1VarDark />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-flows" title="流程页 · 0→1 引导 + AI 巡检 + 全书健康度" subtitle="新书向导 6 步走通；写到一半时 AI 自动盯一致性/伏笔/节奏；每周生成健康度报告">
+        <DCArtboard id="flow-onboard" label="新书向导 · 步骤 3/6（AI 起 3 卷大纲）" width={1280} height={820}>
+          <V1Onboard />
+        </DCArtboard>
+        <DCArtboard id="flow-onboard6" label="新书向导 · 终章 6/6（3 个开头候选 → 开始写）" width={1280} height={820}>
+          <V1OnboardStep6 />
+        </DCArtboard>
+        <DCArtboard id="flow-inspect" label="AI 巡检中心 · inbox 式提醒清单" width={1280} height={820}>
+          <V1Inspect />
+        </DCArtboard>
+        <DCArtboard id="flow-health" label="全书健康度仪表盘 · 78/100 · 本周建议 3 条" width={1280} height={820}>
+          <V1Health />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-supplement" title="补：修订历史 + AI 设置" subtitle="作者改稿日常 + 控制 AI 行为的所有开关">
+        <DCArtboard id="history" label="修订历史 · 我 vs AI 双栏 diff" width={1280} height={820}>
+          <V1History />
+        </DCArtboard>
+        <DCArtboard id="settings" label="AI 设置 · 模型 / 喂养 / 介入强度 / 自定义指令 / 隐私" width={1280} height={820}>
+          <V1Settings />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-publish" title="发布与回流 · 把字交给读者" subtitle="多平台一键发布（差异化处理）+ 读者数据 + AI 评论聚类">
+        <DCArtboard id="publish" label="发布面板 · 4 平台一键 + 七猫待修 + 章末作者说" width={1280} height={820}>
+          <V1Publish />
+        </DCArtboard>
+        <DCArtboard id="analytics" label="读者数据 · 追读 / 留存 / 平台对比 / 评论聚类" width={1280} height={820}>
+          <V1Analytics />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-extras" title="配套页面" subtitle="书架（项目首页）+ 人物设定卡">
+        <DCArtboard id="bookshelf" label="书架 · 项目首页（多书 + 码字仪表盘 + AI 提醒）" width={1280} height={820}>
+          <V1Bookshelf />
+        </DCArtboard>
+        <DCArtboard id="character" label="人物设定卡（关系图 + 时间线 + 风格样本）" width={1280} height={820}>
+          <V1Character />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-storyboard" title="动效故事板 · 写一段 ghost-text" subtitle="停笔 → AI 候选 → Tab 接受 → ⌘K → 改写 → 节拍反馈 · 共 6 帧、约 2 秒、全程非阻塞">
+        <DCArtboard id="sb-all" label="总览 · 6 帧时序" width={1280} height={820}>
+          <V1StoryboardAll />
+        </DCArtboard>
+        <DCArtboard id="sb-1" label="① 静止 · 写到这里" width={540} height={360}>
+          <Sb1 />
+        </DCArtboard>
+        <DCArtboard id="sb-2" label="② AI 飘出 ghost-text" width={540} height={360}>
+          <Sb2 />
+        </DCArtboard>
+        <DCArtboard id="sb-3" label="③ Tab 接收" width={540} height={360}>
+          <Sb3 />
+        </DCArtboard>
+        <DCArtboard id="sb-4" label="④ ⌘K 召唤命令面板" width={540} height={360}>
+          <Sb4 />
+        </DCArtboard>
+        <DCArtboard id="sb-5" label="⑤ 改写：crossfade 替换" width={540} height={360}>
+          <Sb5 />
+        </DCArtboard>
+        <DCArtboard id="sb-6" label="⑥ 节拍条更新（900ms 后）" width={540} height={360}>
+          <Sb6 />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-views" title="三大视图细化" subtitle="顶部 [写作 / 看板 / 时间线] 切换的三套视图 + ⌘K 命令面板全集">
+        <DCArtboard id="view-kanban" label="看板视图 · 卷/章卡片 + 张力曲线 + 状态机" width={1280} height={820}>
+          <V1Kanban />
+        </DCArtboard>
+        <DCArtboard id="view-timeline" label="时间线 · 人物轨道 + 伏笔弧 + 节奏曲线" width={1280} height={820}>
+          <V1Timeline />
+        </DCArtboard>
+        <DCArtboard id="palette-full" label="⌘K 命令面板 · 全集（5 组 / 22 条）" width={1280} height={820}>
+          <V1Palette />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="v1-panels" title="右侧 6 个面板 · 细化展示" subtitle="yuqiu: 把这些功能细化一下展示的面板 — 每个图标点开后是什么样">
+        <DCArtboard id="panel-context" label="✦ 上下文 · AI 看到的全部" width={460} height={820}>
+          <PanelContext />
+        </DCArtboard>
+        <DCArtboard id="panel-people" label="人 · 人物库（一致性扫描）" width={460} height={820}>
+          <PanelCharacters />
+        </DCArtboard>
+        <DCArtboard id="panel-world" label="☱ 设定库（地点/门派/物品/术语）" width={460} height={820}>
+          <PanelWorld />
+        </DCArtboard>
+        <DCArtboard id="panel-fore" label="⚐ 伏笔（埋·收·节奏提醒）" width={460} height={820}>
+          <PanelForeshadow />
+        </DCArtboard>
+        <DCArtboard id="panel-style" label="✎ 风格记忆（笔触指标+人物语气）" width={460} height={820}>
+          <PanelStyle />
+        </DCArtboard>
+        <DCArtboard id="panel-rule" label="⚖ 合规与口味（多平台扫描）" width={460} height={820}>
+          <PanelCompliance />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="layouts" title="参考 · 最初 4 个方向" subtitle="保留作对照，主方案从中各取一块">
+        <DCArtboard id="w1" label="① 三栏经典 · 工程师式工作台" width={1280} height={820}>
+          <W1ThreePane />
+        </DCArtboard>
+        <DCArtboard id="w2" label="② 专注写作 · 浮层 AI 命令面板" width={1280} height={820}>
+          <W2Focus />
+        </DCArtboard>
+        <DCArtboard id="w3" label="③ 大纲看板优先 · 故事结构驱动" width={1280} height={820}>
+          <W3Outline />
+        </DCArtboard>
+        <DCArtboard id="w4" label="④ 行内续写 · Cursor 式 ghost-text" width={1280} height={820}>
+          <W4Inline />
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+</script>
+</body>
+</html>
