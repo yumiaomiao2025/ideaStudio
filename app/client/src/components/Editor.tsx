@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardR
 import type { Novel, Chapter, AICredentials, Term } from "../types.ts";
 import { streamComplete } from "../api.ts";
 import { buildSystemPrompt, buildContinuePrompt, buildRewritePrompt } from "../prompt.ts";
+import { SENSITIVE_WORDS, decorateBody } from "../compliance.ts";
 
 interface SelInfo {
   left: number; top: number; text: string; range: Range;
@@ -14,6 +15,7 @@ interface TermPopover {
 export interface EditorHandle {
   insertText: (text: string) => void;
   getBody: () => string;
+  setBody: (text: string) => void;
 }
 
 interface Props {
@@ -24,13 +26,11 @@ interface Props {
   onBodyChange: (text: string) => void;
   onToast: (msg: string) => void;
   onNeedSettings: () => void;
+  onRevision: (type: "ai" | "user", label: string, milestone?: boolean) => void;
 }
 
-// Sensitive words list
-const SENSITIVE_WORDS = ["刺杀", "暗杀", "血液", "尸身", "喘气", "旧血", "刀口"];
-
 export const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { novel, chapter, credentials, hasCreds, onBodyChange, onToast, onNeedSettings },
+  { novel, chapter, credentials, hasCreds, onBodyChange, onToast, onNeedSettings, onRevision },
   ref
 ) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -51,29 +51,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
   // Build chapter HTML with term/sensitive word decoration
   function buildHTML(body: string): string {
     const lines = body.split("\n");
-    return lines.map((line) => {
-      let html = escapeHtml(line) || "<br/>";
-      // Wrap sensitive words (amber)
-      for (const sw of SENSITIVE_WORDS) {
-        html = html.replace(
-          new RegExp(escapeRegex(sw), "g"),
-          `<span class="sensitive-word" data-sensitive="${sw}">${sw}</span>`
-        );
-      }
-      // Wrap term words (accent dashed underline) — first occurrence only per paragraph
-      const seen = new Set<string>();
-      for (const term of novel.terms) {
-        if (seen.has(term.name)) continue;
-        if (html.includes(term.name)) {
-          html = html.replace(
-            new RegExp(escapeRegex(term.name), ""),
-            `<span class="term-word" data-termid="${term.id}">${term.name}</span>`
-          );
-          seen.add(term.name);
-        }
-      }
-      return `<p>${html}</p>`;
-    }).join("");
+    return lines.map((line) => `<p>${decorateBody(line, novel.terms, SENSITIVE_WORDS)}</p>`).join("");
   }
 
   useEffect(() => {
@@ -201,6 +179,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
     const el = bodyRef.current!;
     setWordCount(countChars(el.innerText));
     onBodyChange(readText());
+    onRevision("ai", "AI 续写", true);
     onToast("✦ 已接受续写");
     setUndoLen(undoStack.current.length);
     return true;
@@ -250,6 +229,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
     bodyRef.current?.normalize();
     setWordCount(countChars(bodyRef.current!.innerText));
     onBodyChange(readText());
+    onRevision("ai", "AI 改写", true);
     onToast("✓ 已采用改写");
     setUndoLen(undoStack.current.length);
     return true;
@@ -276,9 +256,18 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
       lastP.after(p);
       setWordCount(countChars(el.innerText));
       onBodyChange(readText());
+      onRevision("ai", "命令面板插入", false);
       setUndoLen(undoStack.current.length);
     },
     getBody: readText,
+    setBody(text: string) {
+      snapshot("回退版本前");
+      const el = bodyRef.current;
+      if (!el) return;
+      el.innerHTML = buildHTML(text);
+      setWordCount(countChars(el.innerText));
+      onBodyChange(readText());
+    },
   }));
 
   // Keyboard
@@ -420,11 +409,3 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
     </div>
   );
 });
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}

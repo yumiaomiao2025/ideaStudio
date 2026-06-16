@@ -8,6 +8,7 @@ export interface Chapter {
   body: string;
   status: ChapterStatus;
   updatedAt: number;
+  authorNote?: string;
 }
 
 export interface Volume {
@@ -48,6 +49,11 @@ export interface RevisionEntry {
   milestone?: boolean;
 }
 
+export interface WritingLogEntry {
+  date: string;
+  wordsAdded: number;
+}
+
 export interface Novel {
   id: string;
   title: string;
@@ -58,6 +64,63 @@ export interface Novel {
   terms: Term[];
   characters: Character[];
   revisions: RevisionEntry[];
+  writingLog: WritingLogEntry[];
+}
+
+export interface ComplianceHit {
+  word: string;
+  index: number;
+}
+
+export interface ChapterComplianceResult {
+  chapterId: string;
+  chapterNum: number;
+  chapterTitle: string;
+  hits: ComplianceHit[];
+}
+
+export type IssueSeverity = "high" | "medium" | "low";
+
+export interface InspectIssue {
+  id: string;
+  category: string;
+  severity: IssueSeverity;
+  title: string;
+  excerpt: string;
+  suggestions: string[];
+  chapterId?: string;
+}
+
+export interface HealthCardStat {
+  label: string;
+  value: string;
+}
+
+export interface HealthCard {
+  title: string;
+  stats: HealthCardStat[];
+}
+
+export interface HealthAction {
+  text: string;
+  score: string;
+  detail: string;
+}
+
+export interface HealthReport {
+  score: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  cards: HealthCard[];
+  actions: HealthAction[];
+}
+
+export interface NovelSummary {
+  id: string;
+  title: string;
+  genre: string;
+  chapterCount: number;
 }
 
 export interface AICredentials {

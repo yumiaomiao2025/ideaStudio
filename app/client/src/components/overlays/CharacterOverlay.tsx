@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Novel, Character } from "../../types.ts";
+import { computeRelations, extractVoiceSamples } from "../../derive.ts";
 
 interface Props {
   novel: Novel;
@@ -18,24 +19,21 @@ export function CharacterOverlay({ novel, characterId, onClose, onToast }: Props
     "沈砚": "🗡", "季元": "👁", "卫衍": "⚔", "白如霜": "❄",
   };
 
-  // Relations (mock)
-  const relations = [
-    { name: "季元", relation: "仇敌", color: "var(--accent)" },
-    { name: "卫衍", relation: "旧友（已亡）", color: "var(--ink-3)" },
-    { name: "白如霜", relation: "同行", color: "var(--warm)" },
-  ].filter((r) => r.name !== character.name);
+  // Relations derived from real chapter co-occurrence
+  const relationCounts = computeRelations(novel, character);
+  const relations = relationCounts.map((r) => ({
+    name: r.name,
+    relation: `共同出场 ${r.count} 章`,
+    color: r.count >= 3 ? "var(--accent)" : r.count >= 2 ? "var(--warm)" : "var(--ink-3)",
+  }));
 
   // Chapter appearances
   const chapters = novel.chapters.filter((c) =>
     c.body.includes(character.name)
   ).sort((a, b) => a.num - b.num);
 
-  const voices: Record<string, string[]> = {
-    "沈砚": ['"嗯。"', '"不必送。"', '"我知道了。"'],
-    "季元": ['"请坐。"', '"这件事，交给我。"', '"他必须死。"'],
-    "卫衍": ['"走了？"', '"你这个人，真的很烦。"', '"跟我走，别磨蹭。"'],
-    "白如霜": ['"父亲不在家。"', '"你是什么人？"', '"我知道的，比你以为的多。"'],
-  };
+  // Voice samples extracted from real dialogue in the body text
+  const voiceSamples = extractVoiceSamples(novel, character);
 
   return (
     <div className="overlay-backdrop center-overlay" onClick={onClose}>
@@ -140,13 +138,13 @@ export function CharacterOverlay({ novel, characterId, onClose, onToast }: Props
               <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>
                 {character.name} 的典型对话风格
               </div>
-              {(voices[character.name] || []).map((v, i) => (
+              {voiceSamples.map((v, i) => (
                 <div key={i} className="panel-card" style={{ marginBottom: 8 }}>
-                  <div style={{ fontFamily: "Noto Serif SC, serif", fontSize: 14, lineHeight: 1.8 }}>{v}</div>
+                  <div style={{ fontFamily: "Noto Serif SC, serif", fontSize: 14, lineHeight: 1.8 }}>"{v}"</div>
                 </div>
               ))}
-              {!voices[character.name] && (
-                <div style={{ color: "var(--ink-3)", fontSize: 13 }}>暂无语气样本，可从正文中提取</div>
+              {voiceSamples.length === 0 && (
+                <div style={{ color: "var(--ink-3)", fontSize: 13 }}>正文中暂未检测到该人物的对话</div>
               )}
             </div>
           )}

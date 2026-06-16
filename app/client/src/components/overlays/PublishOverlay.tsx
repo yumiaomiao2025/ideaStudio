@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Novel, Chapter, AICredentials } from "../../types.ts";
-import { streamComplete } from "../../api.ts";
+import { streamComplete, fetchCompliance, saveChapter } from "../../api.ts";
 import { buildSystemPrompt } from "../../prompt.ts";
 
 interface Props {
@@ -10,21 +10,65 @@ interface Props {
   hasCreds: boolean;
   onClose: () => void;
   onToast: (msg: string) => void;
+  onChapterUpdate: (chapter: Chapter) => void;
 }
 
-const PLATFORMS = [
-  { name: "起点", status: "ready" as const, title: "" },
-  { name: "番茄", status: "warn" as const, title: "建议钩子型长标题" },
-  { name: "七猫", status: "warn" as const, title: "刺杀→暗杀" },
-  { name: "微读", status: "ready" as const, title: "" },
-  { name: "晋江", status: "ready" as const, title: "" },
-];
+const ALL_PLATFORMS = ["起点", "番茄", "七猫", "微读", "晋江"];
 
-export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose, onToast }: Props) {
+export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose, onToast, onChapterUpdate }: Props) {
   const [titles, setTitles] = useState<string[]>([]);
-  const [authorNote, setAuthorNote] = useState("");
+  const [chapterTitle, setChapterTitle] = useState(chapter.title);
+  const [authorNote, setAuthorNote] = useState(chapter.authorNote ?? "");
   const [loadingTitles, setLoadingTitles] = useState(false);
   const [loadingNote, setLoadingNote] = useState(false);
+  const [hasComplianceIssue, setHasComplianceIssue] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  useEffect(() => {
+    fetchCompliance(novel.id)
+      .then((results) => setHasComplianceIssue(results.some((r) => r.chapterId === chapter.id)))
+      .catch(() => {});
+  }, [novel.id, chapter.id]);
+
+  const platforms = ALL_PLATFORMS.map((name) => ({
+    name,
+    status: hasComplianceIssue ? ("warn" as const) : ("ready" as const),
+  }));
+
+  async function adoptTitle(t: string) {
+    setChapterTitle(t);
+    try {
+      const saved = await saveChapter(novel.id, chapter.id, { title: t });
+      onChapterUpdate(saved);
+      onToast("已采用标题：" + t);
+    } catch {
+      onToast("标题保存失败");
+    }
+  }
+
+  async function saveAuthorNote(note: string) {
+    setAuthorNote(note);
+    try {
+      const saved = await saveChapter(novel.id, chapter.id, { authorNote: note });
+      onChapterUpdate(saved);
+    } catch {
+      onToast("作者说保存失败");
+    }
+  }
+
+  async function confirmPublish() {
+    setPublishing(true);
+    try {
+      const saved = await saveChapter(novel.id, chapter.id, { status: "done" });
+      onChapterUpdate(saved);
+      onToast("已发布：第 " + chapter.num + " 章");
+      onClose();
+    } catch {
+      onToast("发布失败");
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   function generateTitles() {
     if (!hasCreds) { onToast("请先配置 AI 服务"); return; }
@@ -61,7 +105,7 @@ export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose,
       },
       {
         onDelta: (d) => { acc += d; setAuthorNote(acc); },
-        onDone: () => setLoadingNote(false),
+        onDone: () => { setLoadingNote(false); saveAuthorNote(acc); },
         onError: () => setLoadingNote(false),
       }
     );
@@ -73,7 +117,7 @@ export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose,
         <div className="overlay-head">
           <h2 className="overlay-title">🪶 发布</h2>
           <span style={{ fontSize: 13, color: "var(--ink-3)", marginLeft: 12 }}>
-            第 {chapter.num} 章 · {chapter.title}
+            第 {chapter.num} 章 · {chapterTitle}
           </span>
           <button className="overlay-close" onClick={onClose}>×</button>
         </div>
@@ -82,11 +126,11 @@ export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose,
           <div className="panel-section">
             <h5>平台状态</h5>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {PLATFORMS.map((p) => (
+              {platforms.map((p) => (
                 <div key={p.name} className={"pub-platform " + p.status}>
                   <div className="pub-platform-name">{p.name}</div>
                   <div className={"pub-platform-status " + p.status}>
-                    {p.status === "ready" ? "✓ 可发" : "⚠ " + p.title}
+                    {p.status === "ready" ? "✓ 可发" : "⚠ 含敏感词，建议先在「合规」面板修改"}
                   </div>
                 </div>
               ))}
@@ -97,7 +141,7 @@ export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose,
           <div className="panel-section">
             <h5>章节标题</h5>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <span style={{ fontFamily: "Noto Serif SC, serif", fontWeight: 600, fontSize: 15 }}>{chapter.title}</span>
+              <span style={{ fontFamily: "Noto Serif SC, serif", fontWeight: 600, fontSize: 15 }}>{chapterTitle}</span>
               <button className="topbar-btn" onClick={generateTitles} disabled={loadingTitles}>
                 {loadingTitles ? "生成中…" : "✦ AI 起标题"}
               </button>
@@ -108,7 +152,7 @@ export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose,
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--paper-2)", borderRadius: 6 }}>
                     <span style={{ flex: 1, fontFamily: "Noto Serif SC, serif", fontSize: 14 }}>{t}</span>
                     <button className="inspect-action-btn"
-                      onClick={() => onToast("已采用标题：" + t)}>
+                      onClick={() => adoptTitle(t)}>
                       采用
                     </button>
                   </div>
@@ -129,6 +173,7 @@ export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose,
               }}
               value={authorNote}
               onChange={(e) => setAuthorNote(e.target.value)}
+              onBlur={(e) => saveAuthorNote(e.target.value)}
               placeholder="章末作者说（可选）…"
             />
             <button className="topbar-btn" style={{ marginTop: 6 }}
@@ -154,8 +199,8 @@ export function PublishOverlay({ novel, chapter, credentials, hasCreds, onClose,
 
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button className="btn-accent" style={{ flex: 1 }}
-              onClick={() => onToast("已加入发布队列")}>
-              ✓ 确认发布
+              onClick={confirmPublish} disabled={publishing}>
+              {publishing ? "发布中…" : "✓ 确认发布"}
             </button>
             <button className="btn-soft" onClick={onClose}>取消</button>
           </div>

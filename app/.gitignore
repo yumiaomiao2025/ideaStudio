@@ -2,6 +2,6 @@ node_modules/
 dist/
 server/dist/
 client/dist/
-server/src/data/db.json
+server/data/
 .env
 *.local

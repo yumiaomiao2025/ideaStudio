@@ -1,4 +1,7 @@
-import type { Novel, Chapter, Term, RevisionEntry, AICredentials } from "./types.ts";
+import type {
+  Novel, Chapter, Term, RevisionEntry, AICredentials,
+  InspectIssue, HealthReport, ChapterComplianceResult, NovelSummary,
+} from "./types.ts";
 
 const J = { "Content-Type": "application/json" };
 
@@ -8,10 +11,42 @@ export async function fetchNovel(id: string): Promise<Novel> {
   return r.json();
 }
 
+export async function fetchNovels(): Promise<NovelSummary[]> {
+  const r = await fetch(`/api/novels`);
+  if (!r.ok) throw new Error("加载作品列表失败");
+  return r.json();
+}
+
+export async function fetchInspect(novelId: string): Promise<InspectIssue[]> {
+  const r = await fetch(`/api/novels/${novelId}/inspect`);
+  if (!r.ok) throw new Error("加载巡检结果失败");
+  return r.json();
+}
+
+export async function fetchHealth(novelId: string): Promise<HealthReport> {
+  const r = await fetch(`/api/novels/${novelId}/health`);
+  if (!r.ok) throw new Error("加载健康度失败");
+  return r.json();
+}
+
+export async function fetchCompliance(novelId: string): Promise<ChapterComplianceResult[]> {
+  const r = await fetch(`/api/novels/${novelId}/compliance`);
+  if (!r.ok) throw new Error("加载合规检测失败");
+  return r.json();
+}
+
+export async function revertChapter(novelId: string, chapterId: string, revisionId: string): Promise<Chapter> {
+  const r = await fetch(`/api/novels/${novelId}/chapters/${chapterId}/revert`, {
+    method: "POST", headers: J, body: JSON.stringify({ revisionId }),
+  });
+  if (!r.ok) throw new Error("回退失败");
+  return r.json();
+}
+
 export async function saveChapter(
   novelId: string,
   chapterId: string,
-  patch: Partial<Pick<Chapter, "title" | "body" | "status">>
+  patch: Partial<Pick<Chapter, "title" | "body" | "status" | "authorNote">>
 ): Promise<Chapter> {
   const r = await fetch(`/api/novels/${novelId}/chapters/${chapterId}`, {
     method: "PATCH", headers: J, body: JSON.stringify(patch),

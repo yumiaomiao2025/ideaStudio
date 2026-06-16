@@ -6,34 +6,13 @@ interface Props {
   currentChapterId: string;
   onClose: () => void;
   onToast: (msg: string) => void;
+  onRevert: (revisionId: string) => void;
 }
 
-export function HistoryOverlay({ novel, currentChapterId, onClose, onToast }: Props) {
-  const revisions = (novel.revisions || [])
+export function HistoryOverlay({ novel, currentChapterId, onClose, onToast, onRevert }: Props) {
+  const allRevisions = (novel.revisions || [])
     .filter((r) => r.chapterId === currentChapterId)
     .sort((a, b) => b.timestamp - a.timestamp);
-
-  const allRevisions = [
-    ...revisions,
-    {
-      id: "r-seed-1",
-      chapterId: currentChapterId,
-      timestamp: Date.now() - 14400000,
-      type: "user" as const,
-      label: "手动编辑：开头段",
-      snapshot: "雪线压着城墙，像一道眉。沈砚走近城门。",
-      milestone: false,
-    },
-    {
-      id: "r-seed-2",
-      chapterId: currentChapterId,
-      timestamp: Date.now() - 18000000,
-      type: "auto" as const,
-      label: "自动保存",
-      snapshot: "雪线压城墙。沈砚走近。",
-      milestone: false,
-    },
-  ];
 
   const [selected, setSelected] = useState(0);
 
@@ -89,6 +68,11 @@ export function HistoryOverlay({ novel, currentChapterId, onClose, onToast }: Pr
                   {r.milestone && <span style={{ fontSize: 10, color: "var(--warm)", marginLeft: 4 }}>★</span>}
                 </div>
               ))}
+              {allRevisions.length === 0 && (
+                <div style={{ color: "var(--ink-3)", fontSize: 12.5, padding: "6px 0" }}>
+                  暂无历史版本，继续写作或使用 AI 续写后会自动记录
+                </div>
+              )}
             </div>
 
             {/* Diff */}
@@ -105,11 +89,16 @@ export function HistoryOverlay({ novel, currentChapterId, onClose, onToast }: Pr
               </div>
               <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
                 <button className="btn-soft"
-                  onClick={() => onToast("已回退至该版本")}>
+                  disabled={!allRevisions[selected]}
+                  onClick={() => { if (allRevisions[selected]) { onRevert(allRevisions[selected].id); onClose(); } }}>
                   ↩ 回退至此版本
                 </button>
                 <button className="btn-soft"
-                  onClick={() => onToast("已复制该版本内容")}>
+                  disabled={!allRevisions[selected]}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(allRevisions[selected]?.snapshot || "");
+                    onToast("已复制该版本内容");
+                  }}>
                   复制内容
                 </button>
               </div>

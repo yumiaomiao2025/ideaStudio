@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { Novel, AICredentials } from "../../types.ts";
-import { streamComplete } from "../../api.ts";
+import { useEffect, useState } from "react";
+import type { Novel, AICredentials, InspectIssue } from "../../types.ts";
+import { streamComplete, fetchInspect } from "../../api.ts";
 import { buildSystemPrompt } from "../../prompt.ts";
 
 interface Props {
@@ -11,25 +11,26 @@ interface Props {
   onToast: (msg: string) => void;
 }
 
-const ISSUES = [
-  { id: 1, category: "一致性", severity: "high" as const, title: "沈砚酒量前后矛盾", excerpt: "第22章：「沈砚不喝酒，矛尖挡了杯」/ 第31章：「连饮三盏，面不改色」", suggestions: ["改 22 章：删去不喝酒描写", "改 31 章：减为浅抿一口", "登记为成长事件", "忽略"] },
-  { id: 2, category: "伏笔", severity: "high" as const, title: "铜牌伏笔距回收仅 18 章", excerpt: "第 17 章埋下「半枚铜牌」，预计第 60 章回收，当前第 42 章", suggestions: ["加入巡检计划", "提前铺垫", "调整回收章节"] },
-  { id: 3, category: "节奏", severity: "medium" as const, title: "连续 5 章对话密度超 45%", excerpt: "第 38-42 章均以对话推进，叙事节奏偏快，读者需要喘息场景", suggestions: ["下一章加入独处环境描写", "插入过渡性回忆", "保持现有节奏"] },
-  { id: 4, category: "命名", severity: "low" as const, title: "两个次要角色名字同音（季元/季远）", excerpt: "第 43 章新引入角色「季远」与反派「季元」读音相同，易混淆", suggestions: ["改季远为「程远」", "加强区分描写"] },
-  { id: 5, category: "设定空缺", severity: "medium" as const, title: "雪夜城地图细节不足", excerpt: "城内方位描写缺失，第 42-44 章场景跳转逻辑模糊", suggestions: ["补充城内地图设定", "加入方位描写"] },
-];
-
-const CATEGORIES = ["全部", "一致性", "伏笔", "节奏", "命名", "设定空缺", "合规", "风格"];
+const CATEGORIES = ["全部", "一致性", "伏笔", "节奏", "命名", "合规"];
 
 export function InspectOverlay({ novel, credentials, hasCreds, onClose, onToast }: Props) {
   const [filter, setFilter] = useState("全部");
-  const [aiResponse, setAiResponse] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState<number | null>(null);
+  const [issues, setIssues] = useState<InspectIssue[]>([]);
+  const [loadingIssues, setLoadingIssues] = useState(true);
+  const [aiResponse, setAiResponse] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState<string | null>(null);
   const abortRef = { current: null as (() => void) | null };
 
-  const filtered = filter === "全部" ? ISSUES : ISSUES.filter((i) => i.category === filter);
+  useEffect(() => {
+    fetchInspect(novel.id)
+      .then(setIssues)
+      .catch(() => onToast("巡检加载失败"))
+      .finally(() => setLoadingIssues(false));
+  }, [novel.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function askAI(issue: typeof ISSUES[0]) {
+  const filtered = filter === "全部" ? issues : issues.filter((i) => i.category === filter);
+
+  function askAI(issue: InspectIssue) {
     if (!hasCreds) { onToast("请先配置 AI 服务"); return; }
     setLoading(issue.id);
     let acc = "";
@@ -48,9 +49,9 @@ export function InspectOverlay({ novel, credentials, hasCreds, onClose, onToast 
     );
   }
 
-  const highCount = ISSUES.filter((i) => i.severity === "high").length;
-  const medCount = ISSUES.filter((i) => i.severity === "medium").length;
-  const lowCount = ISSUES.filter((i) => i.severity === "low").length;
+  const highCount = issues.filter((i) => i.severity === "high").length;
+  const medCount = issues.filter((i) => i.severity === "medium").length;
+  const lowCount = issues.filter((i) => i.severity === "low").length;
 
   return (
     <div className="overlay-backdrop" onClick={onClose}>
@@ -74,6 +75,11 @@ export function InspectOverlay({ novel, credentials, hasCreds, onClose, onToast 
               </button>
             ))}
           </div>
+
+          {loadingIssues && <div style={{ color: "var(--ink-3)", fontSize: 13, padding: "20px 0" }}>巡检中…</div>}
+          {!loadingIssues && filtered.length === 0 && (
+            <div style={{ color: "var(--ink-3)", fontSize: 13, padding: "20px 0" }}>未发现该类问题，继续保持</div>
+          )}
 
           {filtered.map((issue) => (
             <div key={issue.id} className={"inspect-item " + issue.severity}>

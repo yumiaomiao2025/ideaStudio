@@ -1,4 +1,5 @@
 import type { Novel, Chapter } from "../types.ts";
+import { computeTensionCurve, computeDialogueRatio } from "../derive.ts";
 
 interface Props {
   novel: Novel;
@@ -16,14 +17,21 @@ const STATUS_CLS: Record<Chapter["status"], string> = {
 export function KanbanView({ novel, currentId, onSelect }: Props) {
   const volumes = [...novel.volumes].sort((a, b) => a.order - b.order);
 
-  // Simple tension curve data (mock)
-  const tensionPoints = [20, 35, 45, 30, 55, 40, 65, 50, 80, 70, 85, 60, 90, 75, 95];
+  const curve = computeTensionCurve(novel.chapters);
   const W = 600, H = 60;
-  const points = tensionPoints.map((v, i) => {
-    const x = (i / (tensionPoints.length - 1)) * W;
-    const y = H - (v / 100) * H;
+  const points = curve.map((p, i) => {
+    const x = curve.length > 1 ? (i / (curve.length - 1)) * W : 0;
+    const y = H - (p.value / 100) * H;
     return `${x},${y}`;
   }).join(" ");
+
+  const currentChapter = novel.chapters.find((c) => c.id === currentId);
+  const currentIdx = currentChapter ? curve.findIndex((p) => p.num === currentChapter.num) : -1;
+  const currentX = currentIdx >= 0 && curve.length > 1 ? (currentIdx / (curve.length - 1)) * W : null;
+
+  let climaxIdx = -1;
+  curve.forEach((p, i) => { if (climaxIdx === -1 || p.value > curve[climaxIdx].value) climaxIdx = i; });
+  const climaxX = climaxIdx >= 0 && curve.length > 1 ? (climaxIdx / (curve.length - 1)) * W : null;
 
   return (
     <div className="kanban">
@@ -38,13 +46,21 @@ export function KanbanView({ novel, currentId, onSelect }: Props) {
             points={points}
           />
           {/* Current chapter marker */}
-          <line x1="300" y1="0" x2="300" y2={H}
-            stroke="var(--accent)" strokeWidth="1" strokeDasharray="4,3" opacity="0.5" />
-          <circle cx="300" cy={H - (70 / 100) * H} r="4" fill="var(--accent)" />
-          <text x="304" y={H - (70 / 100) * H - 4} fill="var(--accent)" fontSize="10">当前</text>
-          {/* Climax prediction */}
-          <circle cx={W * 0.75} cy={H - (95 / 100) * H} r="5" fill="none" stroke="var(--warm)" strokeWidth="1.5" strokeDasharray="3,2" />
-          <text x={W * 0.75 + 6} y={H - (95 / 100) * H + 4} fill="var(--warm)" fontSize="10">高潮预测</text>
+          {currentX !== null && curve[currentIdx] && (
+            <>
+              <line x1={currentX} y1="0" x2={currentX} y2={H}
+                stroke="var(--accent)" strokeWidth="1" strokeDasharray="4,3" opacity="0.5" />
+              <circle cx={currentX} cy={H - (curve[currentIdx].value / 100) * H} r="4" fill="var(--accent)" />
+              <text x={currentX + 4} y={H - (curve[currentIdx].value / 100) * H - 4} fill="var(--accent)" fontSize="10">当前</text>
+            </>
+          )}
+          {/* Climax */}
+          {climaxX !== null && curve[climaxIdx] && (
+            <>
+              <circle cx={climaxX} cy={H - (curve[climaxIdx].value / 100) * H} r="5" fill="none" stroke="var(--warm)" strokeWidth="1.5" strokeDasharray="3,2" />
+              <text x={climaxX + 6} y={H - (curve[climaxIdx].value / 100) * H + 4} fill="var(--warm)" fontSize="10">峰值</text>
+            </>
+          )}
         </svg>
       </div>
 
@@ -54,8 +70,9 @@ export function KanbanView({ novel, currentId, onSelect }: Props) {
           const chapters = novel.chapters
             .filter((c) => c.volumeId === vol.id)
             .sort((a, b) => a.num - b.num);
-          const isDone = vol.order === 1;
-          const isCurrent = vol.order === 2;
+          const isDone = chapters.length > 0 && chapters.every((c) => c.status === "done");
+          const isCurrent = chapters.some((c) => c.id === currentId);
+          const dialogueRatio = computeDialogueRatio(chapters);
 
           return (
             <div key={vol.id} className="kanban-col">
@@ -80,9 +97,9 @@ export function KanbanView({ novel, currentId, onSelect }: Props) {
                   </span>
                 </div>
               ))}
-              {isCurrent && (
+              {isCurrent && dialogueRatio > 0.5 && (
                 <div className="kanban-ai-hint">
-                  ✦ AI 节奏建议：当前卷对话占比偏高（41%），建议下一章加入独处场景降节奏
+                  ✦ AI 节奏建议：当前卷对话占比偏高（{Math.round(dialogueRatio * 100)}%），建议下一章加入独处场景降节奏
                 </div>
               )}
             </div>

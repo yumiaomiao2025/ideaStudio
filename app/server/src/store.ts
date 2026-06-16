@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DB, Novel, Chapter, Term, RevisionEntry } from "./types.js";
 import { seedNovel } from "./seed.js";
+import { applyWritingLog, revertChapterSnapshot } from "./lib/analysis.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "data");
@@ -45,13 +46,35 @@ export async function getNovel(id: string): Promise<Novel | undefined> {
 export async function updateChapter(
   novelId: string,
   chapterId: string,
-  patch: Partial<Pick<Chapter, "title" | "body" | "status">>
+  patch: Partial<Pick<Chapter, "title" | "body" | "status" | "authorNote">>
 ): Promise<Chapter | undefined> {
   const db = await ensureLoaded();
   const novel = db.novels.find((n) => n.id === novelId);
   const ch = novel?.chapters.find((c) => c.id === chapterId);
-  if (!ch) return undefined;
+  if (!ch || !novel) return undefined;
+  if (typeof patch.body === "string" && patch.body !== ch.body) {
+    const delta = patch.body.length - ch.body.length;
+    const today = new Date().toISOString().slice(0, 10);
+    novel.writingLog = applyWritingLog(novel.writingLog ?? [], today, delta);
+  }
   Object.assign(ch, patch, { updatedAt: Date.now() });
+  await persist();
+  return ch;
+}
+
+export async function revertChapter(
+  novelId: string,
+  chapterId: string,
+  revisionId: string
+): Promise<Chapter | undefined> {
+  const db = await ensureLoaded();
+  const novel = db.novels.find((n) => n.id === novelId);
+  const ch = novel?.chapters.find((c) => c.id === chapterId);
+  if (!ch || !novel) return undefined;
+  const snapshot = revertChapterSnapshot(novel, chapterId, revisionId);
+  if (snapshot === undefined) return undefined;
+  ch.body = snapshot;
+  ch.updatedAt = Date.now();
   await persist();
   return ch;
 }

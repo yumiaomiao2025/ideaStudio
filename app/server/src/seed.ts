@@ -195,5 +195,9 @@ export function seedNovel(): Novel {
         milestone: true,
       },
     ],
+    writingLog: [
+      { date: new Date(Date.now() - 86400000 * 2).toISOString().slice(0, 10), wordsAdded: 1800 },
+      { date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), wordsAdded: 2340 },
+    ],
   };
 }

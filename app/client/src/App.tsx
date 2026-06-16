@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { Novel, AICredentials, ViewMode, RightTab, OverlayType } from "./types.ts";
-import { fetchNovel, saveChapter, createChapter } from "./api.ts";
+import type { Novel, AICredentials, ViewMode, RightTab, OverlayType, RevisionEntry } from "./types.ts";
+import { fetchNovel, saveChapter, createChapter, postRevision, revertChapter } from "./api.ts";
 import { loadCredentials, saveCredentials, hasCredentials } from "./prompt.ts";
 import { Topbar } from "./components/Topbar.tsx";
 import { ChapterList } from "./components/ChapterList.tsx";
@@ -36,6 +36,7 @@ export function App() {
   const saveTimer = useRef<number | null>(null);
   const toastTimer = useRef<number | null>(null);
   const editorRef = useRef<EditorHandle>(null);
+  const lastAutoRevisionLen = useRef<Record<string, number>>({});
 
   // Load novel
   useEffect(() => {
@@ -90,10 +91,43 @@ export function App() {
         try {
           await saveChapter(novel.id, chapter.id, { body: text });
           setSaveState("已同步 " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }));
+          const lastLen = lastAutoRevisionLen.current[chapter.id] ?? 0;
+          if (Math.abs(text.length - lastLen) >= 30) {
+            lastAutoRevisionLen.current[chapter.id] = text.length;
+            const entry: RevisionEntry = {
+              id: "r" + Date.now().toString(36),
+              chapterId: chapter.id,
+              timestamp: Date.now(),
+              type: "auto",
+              label: "自动保存",
+              snapshot: text,
+            };
+            postRevision(novel.id, entry).catch(() => {});
+            setNovel((prev) => prev ? { ...prev, revisions: [entry, ...prev.revisions] } : prev);
+          }
         } catch {
           setSaveState("保存失败");
         }
       }, 700);
+    },
+    [novel, chapter]
+  );
+
+  const handleRevision = useCallback(
+    (type: "ai" | "user", label: string, milestone?: boolean) => {
+      if (!novel || !chapter) return;
+      const snapshot = editorRef.current?.getBody() ?? chapter.body;
+      const entry: RevisionEntry = {
+        id: "r" + Date.now().toString(36),
+        chapterId: chapter.id,
+        timestamp: Date.now(),
+        type,
+        label,
+        snapshot,
+        milestone,
+      };
+      postRevision(novel.id, entry).catch(() => {});
+      setNovel((prev) => prev ? { ...prev, revisions: [entry, ...prev.revisions] } : prev);
     },
     [novel, chapter]
   );
@@ -113,6 +147,18 @@ export function App() {
     editorRef.current?.insertText(text);
     showToast("✦ AI 已插入");
   }, [showToast]);
+
+  const handleRevert = useCallback(async (revisionId: string) => {
+    if (!novel || !chapter) return;
+    try {
+      const ch = await revertChapter(novel.id, chapter.id, revisionId);
+      setNovel((prev) => prev ? { ...prev, chapters: prev.chapters.map((c) => c.id === ch.id ? ch : c) } : prev);
+      editorRef.current?.setBody(ch.body);
+      showToast("已回退至该版本");
+    } catch {
+      showToast("回退失败");
+    }
+  }, [novel, chapter, showToast]);
 
   function handleCharacterClick(id: string) {
     setSelectedCharId(id);
@@ -169,6 +215,7 @@ export function App() {
             onBodyChange={handleBodyChange}
             onToast={showToast}
             onNeedSettings={() => setShowSettings(true)}
+            onRevision={handleRevision}
           />
         )}
         {view === "kanban" && (
@@ -232,12 +279,14 @@ export function App() {
         <HistoryOverlay
           novel={novel} currentChapterId={currentId}
           onClose={() => setOverlay(null)} onToast={showToast}
+          onRevert={handleRevert}
         />
       )}
       {overlay === "publish" && chapter && (
         <PublishOverlay
           novel={novel} chapter={chapter} credentials={creds} hasCreds={hasCredentials(creds)}
           onClose={() => setOverlay(null)} onToast={showToast}
+          onChapterUpdate={(ch) => setNovel((prev) => prev ? { ...prev, chapters: prev.chapters.map((c) => c.id === ch.id ? ch : c) } : prev)}
         />
       )}
       {overlay === "analytics" && (

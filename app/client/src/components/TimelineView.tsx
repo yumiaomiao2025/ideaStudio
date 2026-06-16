@@ -1,4 +1,7 @@
 import type { Novel } from "../types.ts";
+import { computeCharacterTracks, computeTensionCurve } from "../derive.ts";
+
+const TRACK_COLORS = ["var(--accent)", "var(--ink-3)", "var(--warm)", "var(--green)"];
 
 interface Props {
   novel: Novel;
@@ -10,25 +13,22 @@ export function TimelineView({ novel }: Props) {
   const maxNum = Math.max(...chapters.map((c) => c.num), 60);
   const xOf = (num: number) => (num / maxNum) * W;
 
-  // Character tracks (simplified)
-  const tracks = [
-    { name: "沈砚", color: "var(--accent)", start: 1, end: maxNum, break: null as number | null },
-    { name: "卫衍", color: "var(--ink-3)", start: 1, end: 29, break: 29 },
-    { name: "季元", color: "var(--warm)", start: 38, end: maxNum, break: null },
-    { name: "白如霜", color: "var(--green)", start: 43, end: maxNum, break: null },
-  ];
+  const tracks = computeCharacterTracks(novel).map((t, i) => ({
+    ...t,
+    color: TRACK_COLORS[i % TRACK_COLORS.length],
+  }));
 
   // Foreshadow arcs
   const fores = novel.terms.filter((t) => t.isForeshadow && t.plantedChapter && t.recoverChapter);
 
-  const totalH = tracks.length * (TRACK_H + GAP) + 20;
+  const totalH = Math.max(tracks.length, 1) * (TRACK_H + GAP) + 20;
   const tensionH = 50;
 
   // Tension curve for full story
-  const tensionPoints = [10, 25, 40, 30, 55, 35, 70, 55, 80, 65, 85, 60, 90, 72, 95];
-  const tPoints = tensionPoints.map((v, i) => {
-    const x = (i / (tensionPoints.length - 1)) * W;
-    const y = tensionH - (v / 100) * tensionH;
+  const curve = computeTensionCurve(novel.chapters);
+  const tPoints = curve.map((p, i) => {
+    const x = curve.length > 1 ? (i / (curve.length - 1)) * W : 0;
+    const y = tensionH - (p.value / 100) * tensionH;
     return `${x},${y}`;
   }).join(" ");
 
@@ -70,23 +70,18 @@ export function TimelineView({ novel }: Props) {
           {tracks.map((t, i) => {
             const y = i * (TRACK_H + GAP) + 20;
             const x1 = xOf(t.start);
-            const x2 = xOf(t.break || t.end);
-            const isMain = i === 0;
+            const x2 = xOf(t.end);
             return (
               <g key={t.name}>
                 <text x={0} y={y + TRACK_H / 2 + 4} fill="var(--ink-3)" fontSize="10">{t.name}</text>
                 <rect x={x1 + 30} y={y} width={Math.max(0, x2 - x1 - 30)} height={TRACK_H}
-                  rx={TRACK_H / 2} fill={t.color} opacity={isMain ? 0.85 : 0.5} />
-                {t.break && (
-                  <>
-                    <circle cx={xOf(t.break)} cy={y + TRACK_H / 2} r={5}
-                      fill="var(--surface)" stroke="var(--ink)" strokeWidth="1.5" />
-                    <text x={xOf(t.break) + 6} y={y + TRACK_H / 2 + 4} fill="var(--ink-3)" fontSize="9">亡</text>
-                  </>
-                )}
+                  rx={TRACK_H / 2} fill={t.color} opacity={i === 0 ? 0.85 : 0.5} />
               </g>
             );
           })}
+          {tracks.length === 0 && (
+            <text x={W / 2} y={totalH / 2} fill="var(--ink-4)" fontSize="12" textAnchor="middle">暂无人物出场数据</text>
+          )}
         </svg>
       </div>
 

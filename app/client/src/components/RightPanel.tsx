@@ -1,6 +1,7 @@
-import { useState } from "react";
-import type { Novel, Term, RightTab } from "../types.ts";
-import { upsertTerm, deleteTerm } from "../api.ts";
+import { useEffect, useState } from "react";
+import type { Novel, Term, RightTab, ChapterComplianceResult } from "../types.ts";
+import { upsertTerm, deleteTerm, fetchCompliance, saveChapter } from "../api.ts";
+import { SENSITIVE_REPLACEMENTS } from "../compliance.ts";
 
 interface Props {
   novel: Novel;
@@ -38,7 +39,7 @@ export function RightPanel({ novel, tab, onTabChange, onNovelUpdate, onToast, on
         {tab === "terms" && <TermsTab novel={novel} onNovelUpdate={onNovelUpdate} onToast={onToast} />}
         {tab === "foreshadow" && <ForeshadowTab novel={novel} />}
         {tab === "style" && <StyleTab novel={novel} />}
-        {tab === "compliance" && <ComplianceTab novel={novel} onToast={onToast} />}
+        {tab === "compliance" && <ComplianceTab novel={novel} onNovelUpdate={onNovelUpdate} onToast={onToast} />}
       </div>
     </aside>
   );
@@ -285,50 +286,74 @@ function StyleTab({ novel }: { novel: Novel }) {
 }
 
 /* ---- Compliance Tab ---- */
-const SENSITIVE = [
-  { word: "刺杀", replace: "暗杀", platform: "番茄/七猫", level: "high" as const },
-  { word: "血", replace: "暗色血迹", platform: "七猫", level: "medium" as const },
-  { word: "尸身", replace: "遗体", platform: "番茄", level: "medium" as const },
-];
-
-function ComplianceTab({ novel, onToast }: { novel: Novel; onToast: (msg: string) => void }) {
+function ComplianceTab({ novel, onNovelUpdate, onToast }: { novel: Novel; onNovelUpdate: (n: Novel) => void; onToast: (msg: string) => void }) {
   const platforms = ["起点", "番茄", "七猫", "微读", "晋江"];
+  const [results, setResults] = useState<ChapterComplianceResult[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCompliance(novel.id)
+      .then(setResults)
+      .catch(() => onToast("合规检测加载失败"))
+      .finally(() => setLoading(false));
+  }, [novel.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasIssue = results.length > 0;
+  const totalHits = results.reduce((s, r) => s + r.hits.length, 0);
+
+  async function replaceOne(chapterId: string, word: string) {
+    const chapter = novel.chapters.find((c) => c.id === chapterId);
+    if (!chapter) return;
+    const replacement = SENSITIVE_REPLACEMENTS[word] ?? word;
+    const newBody = chapter.body.replace(word, replacement);
+    try {
+      const saved = await saveChapter(novel.id, chapterId, { body: newBody });
+      onNovelUpdate({ ...novel, chapters: novel.chapters.map((c) => c.id === saved.id ? saved : c) });
+      const refreshed = await fetchCompliance(novel.id);
+      setResults(refreshed);
+      onToast(`已将「${word}」替换为「${replacement}」`);
+    } catch {
+      onToast("替换失败");
+    }
+  }
+
   return (
     <div>
       <div className="panel-section">
         <h5>平台适配</h5>
         <div className="publish-platforms" style={{ flexDirection: "column", gap: 6 }}>
-          {platforms.map((p) => {
-            const hasIssue = p === "番茄" || p === "七猫";
-            return (
-              <div key={p} className="platform-row">
-                <span className={"platform-chip " + (hasIssue ? "warn" : "ok")}>{p}</span>
-                <span style={{ fontSize: 12, color: hasIssue ? "var(--warm)" : "var(--green)" }}>
-                  {hasIssue ? "⚠ 待修" : "✓ 可发"}
-                </span>
-              </div>
-            );
-          })}
+          {platforms.map((p) => (
+            <div key={p} className="platform-row">
+              <span className={"platform-chip " + (hasIssue ? "warn" : "ok")}>{p}</span>
+              <span style={{ fontSize: 12, color: hasIssue ? "var(--warm)" : "var(--green)" }}>
+                {hasIssue ? `⚠ 待修 ${totalHits} 处` : "✓ 可发"}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
       <div className="panel-section">
-        <h5>命中词 · {SENSITIVE.length}</h5>
-        {SENSITIVE.map((s, i) => (
-          <div key={i} className={"compliance-item " + s.level}>
-            <div className="compliance-orig">
-              原文含 <span>「{s.word}」</span> · {s.platform}
-            </div>
-            <div className="compliance-sug">建议替换为 <strong>「{s.replace}」</strong></div>
-            <div className="compliance-actions">
-              <button className="compliance-btn primary"
-                onClick={() => onToast(`已将「${s.word}」替换为「${s.replace}」`)}>
-                一键替换
-              </button>
-              <button className="compliance-btn"
-                onClick={() => onToast(`已跳转到「${s.word}」`)}>
-                跳到
-              </button>
-            </div>
+        <h5>命中词 · {totalHits}</h5>
+        {loading && <div style={{ color: "var(--ink-3)", fontSize: 13 }}>检测中…</div>}
+        {!loading && results.length === 0 && (
+          <div style={{ color: "var(--ink-3)", fontSize: 13 }}>未检测到敏感词</div>
+        )}
+        {results.map((r) => (
+          <div key={r.chapterId}>
+            {Array.from(new Set(r.hits.map((h) => h.word))).map((word) => (
+              <div key={r.chapterId + word} className="compliance-item medium">
+                <div className="compliance-orig">
+                  第 {r.chapterNum} 章含 <span>「{word}」</span>
+                </div>
+                <div className="compliance-sug">建议替换为 <strong>「{SENSITIVE_REPLACEMENTS[word] ?? "更温和的表达"}」</strong></div>
+                <div className="compliance-actions">
+                  <button className="compliance-btn primary"
+                    onClick={() => replaceOne(r.chapterId, word)}>
+                    一键替换
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>

@@ -1,4 +1,6 @@
-import type { Novel } from "../../types.ts";
+import { useEffect, useState } from "react";
+import type { Novel, HealthReport } from "../../types.ts";
+import { fetchHealth } from "../../api.ts";
 
 interface Props {
   novel: Novel;
@@ -7,8 +9,15 @@ interface Props {
 }
 
 export function HealthOverlay({ novel, onClose, onToast }: Props) {
-  const score = 78;
-  const weekDelta = 4;
+  const [report, setReport] = useState<HealthReport | null>(null);
+
+  useEffect(() => {
+    fetchHealth(novel.id).then(setReport).catch(() => onToast("健康度加载失败"));
+  }, [novel.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const score = report?.score ?? 0;
+  const cards = report?.cards ?? [];
+  const actions = report?.actions ?? [];
 
   // SVG gauge
   const R = 70, cx = 90, cy = 90;
@@ -16,50 +25,19 @@ export function HealthOverlay({ novel, onClose, onToast }: Props) {
   const pct = score / 100;
   const dashArr = circ * pct;
 
-  const cards = [
-    {
-      title: "📝 进度",
-      stats: [
-        { label: "总字数", value: novel.chapters.reduce((s, c) => s + c.body.length, 0).toLocaleString() + " 字" },
-        { label: "已完成章节", value: novel.chapters.filter((c) => c.status === "done").length + " 章" },
-        { label: "日均码字", value: "2,340 字" },
-        { label: "预计完稿", value: "约 60 章" },
-      ],
-    },
-    {
-      title: "📐 结构",
-      stats: [
-        { label: "张力曲线", value: "良好" },
-        { label: "卷长方差", value: "低（稳定）" },
-        { label: "高潮预测", value: "第 60 章" },
-        { label: "节奏问题", value: "2 处" },
-      ],
-    },
-    {
-      title: "🔗 一致性",
-      stats: [
-        { label: "待修角色问题", value: "2 个" },
-        { label: "伏笔回收率", value: "0 / 2" },
-        { label: "伏笔老化风险", value: "0 条" },
-        { label: "命名冲突", value: "1 处" },
-      ],
-    },
-    {
-      title: "🎨 风格",
-      stats: [
-        { label: "风格匹配度", value: "82%" },
-        { label: "AI 味检测", value: "低" },
-        { label: "起点兼容", value: "✓" },
-        { label: "番茄兼容", value: "⚠ 待修 2 处" },
-      ],
-    },
-  ];
-
-  const actions = [
-    { text: "修复「沈砚酒量」前后矛盾", score: "+5", detail: "在第22章与31章之间加入成长触发事件" },
-    { text: "补写下一章喘息场景", score: "+3", detail: "连续5章高密度对话后，节奏需放缓" },
-    { text: "登记铜牌伏笔回收计划", score: "+2", detail: "第60章回收时机已近，需明确路径" },
-  ];
+  if (!report) {
+    return (
+      <div className="overlay-backdrop center-overlay" onClick={onClose}>
+        <div className="overlay-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="overlay-head">
+            <h2 className="overlay-title">♥ 全书健康度</h2>
+            <button className="overlay-close" onClick={onClose}>×</button>
+          </div>
+          <div className="overlay-body" style={{ color: "var(--ink-3)" }}>计算中…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="overlay-backdrop center-overlay" onClick={onClose}>
@@ -67,7 +45,7 @@ export function HealthOverlay({ novel, onClose, onToast }: Props) {
         <div className="overlay-head">
           <h2 className="overlay-title">♥ 全书健康度</h2>
           <div style={{ marginLeft: 16, fontSize: 13, color: "var(--ink-3)" }}>
-            本周 <span style={{ color: "var(--green)", fontWeight: 600 }}>+{weekDelta}</span> 分
+            高 {report.highCount} · 中 {report.mediumCount} · 低 {report.lowCount}
           </div>
           <button className="overlay-close" onClick={onClose}>×</button>
         </div>
@@ -113,7 +91,8 @@ export function HealthOverlay({ novel, onClose, onToast }: Props) {
 
           {/* Actions */}
           <div className="health-actions">
-            <h5 style={{ margin: "0 0 10px", fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>本周 3 个可执行动作</h5>
+            <h5 style={{ margin: "0 0 10px", fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>{actions.length} 个可执行动作</h5>
+            {actions.length === 0 && <div style={{ color: "var(--ink-3)", fontSize: 13 }}>暂无待办，状态良好</div>}
             {actions.map((a) => (
               <div key={a.text} className="health-action">
                 <div className="health-action-text">

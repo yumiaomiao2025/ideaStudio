@@ -1,9 +1,10 @@
 import { Router } from "express";
 import {
   getNovels, getNovel, updateChapter, createChapter,
-  upsertTerm, deleteTerm, addRevision,
+  upsertTerm, deleteTerm, addRevision, revertChapter,
 } from "../store.js";
 import type { Term, RevisionEntry } from "../types.js";
+import { inspectNovel, computeHealth, scanNovelCompliance } from "../lib/analysis.js";
 
 export const novelsRouter = Router();
 
@@ -19,10 +20,35 @@ novelsRouter.get("/:id", async (req, res) => {
 });
 
 novelsRouter.patch("/:id/chapters/:chapterId", async (req, res) => {
-  const { title, body, status } = req.body ?? {};
-  const ch = await updateChapter(req.params.id, req.params.chapterId, { title, body, status });
+  const { title, body, status, authorNote } = req.body ?? {};
+  const ch = await updateChapter(req.params.id, req.params.chapterId, { title, body, status, authorNote });
   if (!ch) { res.status(404).json({ error: "未找到该章节" }); return; }
   res.json(ch);
+});
+
+novelsRouter.post("/:id/chapters/:chapterId/revert", async (req, res) => {
+  const { revisionId } = req.body ?? {};
+  const ch = await revertChapter(req.params.id, req.params.chapterId, revisionId);
+  if (!ch) { res.status(404).json({ error: "未找到该版本" }); return; }
+  res.json(ch);
+});
+
+novelsRouter.get("/:id/inspect", async (req, res) => {
+  const novel = await getNovel(req.params.id);
+  if (!novel) { res.status(404).json({ error: "未找到该作品" }); return; }
+  res.json(inspectNovel(novel));
+});
+
+novelsRouter.get("/:id/health", async (req, res) => {
+  const novel = await getNovel(req.params.id);
+  if (!novel) { res.status(404).json({ error: "未找到该作品" }); return; }
+  res.json(computeHealth(novel));
+});
+
+novelsRouter.get("/:id/compliance", async (req, res) => {
+  const novel = await getNovel(req.params.id);
+  if (!novel) { res.status(404).json({ error: "未找到该作品" }); return; }
+  res.json(scanNovelCompliance(novel));
 });
 
 novelsRouter.post("/:id/chapters", async (req, res) => {

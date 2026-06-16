@@ -8,6 +8,7 @@ export interface Chapter {
   body: string;
   status: ChapterStatus;
   updatedAt: number;
+  authorNote?: string;
 }
 
 export interface Volume {
@@ -48,6 +49,11 @@ export interface RevisionEntry {
   milestone?: boolean;
 }
 
+export interface WritingLogEntry {
+  date: string;
+  wordsAdded: number;
+}
+
 export interface Novel {
   id: string;
   title: string;
@@ -58,6 +64,7 @@ export interface Novel {
   terms: Term[];
   characters: Character[];
   revisions: RevisionEntry[];
+  writingLog: WritingLogEntry[];
 }
 
 export interface AICredentials {
