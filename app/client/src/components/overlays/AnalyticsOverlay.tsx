@@ -4,9 +4,10 @@ interface Props {
   novel: Novel;
   onClose: () => void;
   onToast: (msg: string) => void;
+  onAddTodo: (text: string, detail: string, source: string) => void;
 }
 
-export function AnalyticsOverlay({ novel, onClose, onToast }: Props) {
+export function AnalyticsOverlay({ novel, onClose, onAddTodo }: Props) {
   const kpis = [
     { label: "追读", value: "1,284", trend: "+12", up: true },
     { label: "收藏", value: "4,721", trend: "+38", up: true },
@@ -75,7 +76,7 @@ export function AnalyticsOverlay({ novel, onClose, onToast }: Props) {
             <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>
               ✦ AI 建议：第23章追读下降 15%，建议章末补 200 字小高潮以提升钩子感
               <button className="inspect-action-btn" style={{ marginLeft: 8 }}
-                onClick={() => onToast("已加入修改计划：第23章补写")}>
+                onClick={() => onAddTodo("第23章补 200 字小高潮", "追读曲线在第23章下降 15%", "读者数据")}>
                 加入计划
               </button>
             </div>
@@ -107,7 +108,7 @@ export function AnalyticsOverlay({ novel, onClose, onToast }: Props) {
                 <div className="cluster-sample">{c.sample}</div>
                 <div className="cluster-action">
                   <button className="inspect-action-btn"
-                    onClick={() => onToast("已加入伏笔规划：" + c.label)}>
+                    onClick={() => onAddTodo("评论聚类：" + c.label, c.sample, "读者数据")}>
                     加入伏笔规划
                   </button>
                 </div>

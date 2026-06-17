@@ -9,11 +9,12 @@ interface Props {
   hasCreds: boolean;
   onClose: () => void;
   onToast: (msg: string) => void;
+  onAddTodo: (text: string, detail: string, source: string) => void;
 }
 
 const CATEGORIES = ["全部", "一致性", "伏笔", "节奏", "命名", "合规"];
 
-export function InspectOverlay({ novel, credentials, hasCreds, onClose, onToast }: Props) {
+export function InspectOverlay({ novel, credentials, hasCreds, onClose, onToast, onAddTodo }: Props) {
   const [filter, setFilter] = useState("全部");
   const [issues, setIssues] = useState<InspectIssue[]>([]);
   const [loadingIssues, setLoadingIssues] = useState(true);
@@ -112,7 +113,7 @@ export function InspectOverlay({ novel, credentials, hasCreds, onClose, onToast 
                 </button>
                 {issue.suggestions.slice(1).map((s) => (
                   <button key={s} className="inspect-action-btn"
-                    onClick={() => onToast(`已标记：${s}`)}>
+                    onClick={() => onAddTodo(s, issue.title, "巡检")}>
                     {s}
                   </button>
                 ))}

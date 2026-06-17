@@ -6,14 +6,17 @@ import { fetchNovels, fetchInspect } from "../../api.ts";
 interface Props {
   novel: Novel;
   onClose: () => void;
-  onOpenNovel: () => void;
-  onToast: (msg: string) => void;
+  onOpenNovel: (id: string) => void;
+  onCreateNovel: (title: string, genre: string) => void;
 }
 
-export function BookshelfOverlay({ novel, onClose, onOpenNovel, onToast }: Props) {
+export function BookshelfOverlay({ novel, onClose, onOpenNovel, onCreateNovel }: Props) {
   const heatmap = computeHeatmap(novel.writingLog ?? []);
   const [otherNovels, setOtherNovels] = useState<NovelSummary[]>([]);
   const [issues, setIssues] = useState<InspectIssue[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newGenre, setNewGenre] = useState("");
 
   useEffect(() => {
     fetchNovels().then((list) => setOtherNovels(list.filter((n) => n.id !== novel.id))).catch(() => {});
@@ -72,7 +75,7 @@ export function BookshelfOverlay({ novel, onClose, onOpenNovel, onToast }: Props
                 </div>
               </div>
 
-              <button className="btn-accent" onClick={() => { onOpenNovel(); onClose(); }}>
+              <button className="btn-accent" onClick={() => { onOpenNovel(novel.id); onClose(); }}>
                 继续写 →
               </button>
             </div>
@@ -102,7 +105,7 @@ export function BookshelfOverlay({ novel, onClose, onOpenNovel, onToast }: Props
                 <div style={{ flex: 1 }}>
                   <div className="book-title" style={{ fontSize: 14 }}>{n.title}</div>
                   <div className="book-meta">{n.genre} · {n.chapterCount} 章</div>
-                  <button className="inspect-action-btn" onClick={() => onToast("切换到：" + n.title)}>
+                  <button className="inspect-action-btn" onClick={() => onOpenNovel(n.id)}>
                     打开
                   </button>
                 </div>
@@ -111,10 +114,30 @@ export function BookshelfOverlay({ novel, onClose, onOpenNovel, onToast }: Props
             {otherNovels.length === 0 && (
               <div style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 8 }}>暂无其他作品</div>
             )}
-            <button className="inspect-action-btn" style={{ marginTop: 8 }}
-              onClick={() => onToast("新建作品功能开发中")}>
-              + 新建作品
-            </button>
+            {!creating && (
+              <button className="inspect-action-btn" style={{ marginTop: 8 }}
+                onClick={() => setCreating(true)}>
+                + 新建作品
+              </button>
+            )}
+            {creating && (
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <input
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="作品名"
+                  style={{ flex: 1, minWidth: 120, padding: "6px 10px", border: "1px solid var(--line-2)", borderRadius: 6, fontSize: 13 }}
+                />
+                <input
+                  value={newGenre}
+                  onChange={(e) => setNewGenre(e.target.value)}
+                  placeholder="题材"
+                  style={{ width: 100, padding: "6px 10px", border: "1px solid var(--line-2)", borderRadius: 6, fontSize: 13 }}
+                />
+                <button className="btn-accent" onClick={() => onCreateNovel(newTitle, newGenre)}>创建</button>
+                <button className="btn-soft" onClick={() => setCreating(false)}>取消</button>
+              </div>
+            )}
           </div>
         </div>
       </div>

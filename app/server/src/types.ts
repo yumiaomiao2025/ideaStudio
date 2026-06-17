@@ -54,6 +54,15 @@ export interface WritingLogEntry {
   wordsAdded: number;
 }
 
+export interface TodoItem {
+  id: string;
+  text: string;
+  detail?: string;
+  source: string;
+  createdAt: number;
+  done: boolean;
+}
+
 export interface Novel {
   id: string;
   title: string;
@@ -65,6 +74,7 @@ export interface Novel {
   characters: Character[];
   revisions: RevisionEntry[];
   writingLog: WritingLogEntry[];
+  todos: TodoItem[];
 }
 
 export interface AICredentials {

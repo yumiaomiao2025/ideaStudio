@@ -1,9 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { DB, Novel, Chapter, Term, RevisionEntry } from "./types.js";
+import type { DB, Novel, Chapter, Term, RevisionEntry, TodoItem } from "./types.js";
 import { seedNovel } from "./seed.js";
 import { applyWritingLog, revertChapterSnapshot } from "./lib/analysis.js";
+import { addTodoItem, toggleTodoItem, removeTodoItem } from "./lib/todos.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "data");
@@ -144,4 +145,51 @@ export async function addRevision(
   // keep last 100
   novel.revisions = novel.revisions.slice(0, 100);
   await persist();
+}
+
+export async function addTodo(novelId: string, item: TodoItem): Promise<TodoItem[] | undefined> {
+  const db = await ensureLoaded();
+  const novel = db.novels.find((n) => n.id === novelId);
+  if (!novel) return undefined;
+  novel.todos = addTodoItem(novel.todos ?? [], item);
+  await persist();
+  return novel.todos;
+}
+
+export async function toggleTodo(novelId: string, todoId: string): Promise<TodoItem[] | undefined> {
+  const db = await ensureLoaded();
+  const novel = db.novels.find((n) => n.id === novelId);
+  if (!novel) return undefined;
+  novel.todos = toggleTodoItem(novel.todos ?? [], todoId);
+  await persist();
+  return novel.todos;
+}
+
+export async function removeTodo(novelId: string, todoId: string): Promise<TodoItem[] | undefined> {
+  const db = await ensureLoaded();
+  const novel = db.novels.find((n) => n.id === novelId);
+  if (!novel) return undefined;
+  novel.todos = removeTodoItem(novel.todos ?? [], todoId);
+  await persist();
+  return novel.todos;
+}
+
+export async function createNovel(title: string, genre: string): Promise<Novel> {
+  const db = await ensureLoaded();
+  const novel: Novel = {
+    id: "n" + Date.now().toString(36),
+    title: title.trim() || "未命名作品",
+    genre: genre.trim() || "未分类",
+    styleNotes: [],
+    volumes: [{ id: "vol1", title: "卷一", order: 1 }],
+    chapters: [],
+    terms: [],
+    characters: [],
+    revisions: [],
+    writingLog: [],
+    todos: [],
+  };
+  db.novels.push(novel);
+  await persist();
+  return novel;
 }

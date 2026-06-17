@@ -2,8 +2,9 @@ import { Router } from "express";
 import {
   getNovels, getNovel, updateChapter, createChapter,
   upsertTerm, deleteTerm, addRevision, revertChapter,
+  addTodo, toggleTodo, removeTodo, createNovel,
 } from "../store.js";
-import type { Term, RevisionEntry } from "../types.js";
+import type { Term, RevisionEntry, TodoItem } from "../types.js";
 import { inspectNovel, computeHealth, scanNovelCompliance } from "../lib/analysis.js";
 
 export const novelsRouter = Router();
@@ -11,6 +12,12 @@ export const novelsRouter = Router();
 novelsRouter.get("/", async (_req, res) => {
   const novels = await getNovels();
   res.json(novels.map((n) => ({ id: n.id, title: n.title, genre: n.genre, chapterCount: n.chapters.length })));
+});
+
+novelsRouter.post("/", async (req, res) => {
+  const { title, genre } = req.body ?? {};
+  const novel = await createNovel(title || "", genre || "");
+  res.status(201).json(novel);
 });
 
 novelsRouter.get("/:id", async (req, res) => {
@@ -75,4 +82,23 @@ novelsRouter.post("/:id/revisions", async (req, res) => {
   const entry: RevisionEntry = req.body;
   await addRevision(req.params.id, entry);
   res.status(201).json({ ok: true });
+});
+
+novelsRouter.post("/:id/todos", async (req, res) => {
+  const item: TodoItem = req.body;
+  const todos = await addTodo(req.params.id, item);
+  if (!todos) { res.status(404).json({ error: "未找到该作品" }); return; }
+  res.status(201).json(todos);
+});
+
+novelsRouter.patch("/:id/todos/:todoId", async (req, res) => {
+  const todos = await toggleTodo(req.params.id, req.params.todoId);
+  if (!todos) { res.status(404).json({ error: "未找到该待办" }); return; }
+  res.json(todos);
+});
+
+novelsRouter.delete("/:id/todos/:todoId", async (req, res) => {
+  const todos = await removeTodo(req.params.id, req.params.todoId);
+  if (!todos) { res.status(404).json({ error: "未找到该待办" }); return; }
+  res.json(todos);
 });

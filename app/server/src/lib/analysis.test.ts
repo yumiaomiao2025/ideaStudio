@@ -26,6 +26,7 @@ function makeNovel(overrides: Partial<Novel> = {}): Novel {
     characters: [],
     revisions: [],
     writingLog: [],
+    todos: [],
     ...overrides,
   };
 }

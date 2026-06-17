@@ -6,9 +6,10 @@ interface Props {
   novel: Novel;
   onClose: () => void;
   onToast: (msg: string) => void;
+  onAddTodo: (text: string, detail: string, source: string) => void;
 }
 
-export function HealthOverlay({ novel, onClose, onToast }: Props) {
+export function HealthOverlay({ novel, onClose, onToast, onAddTodo }: Props) {
   const [report, setReport] = useState<HealthReport | null>(null);
 
   useEffect(() => {
@@ -101,7 +102,7 @@ export function HealthOverlay({ novel, onClose, onToast }: Props) {
                 </div>
                 <span className="health-action-score">{a.score}</span>
                 <button className="inspect-action-btn" style={{ marginLeft: 8 }}
-                  onClick={() => onToast("已加入待办：" + a.text)}>
+                  onClick={() => onAddTodo(a.text, a.detail, "健康看板")}>
                   加入
                 </button>
               </div>

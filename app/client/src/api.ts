@@ -1,6 +1,6 @@
 import type {
   Novel, Chapter, Term, RevisionEntry, AICredentials,
-  InspectIssue, HealthReport, ChapterComplianceResult, NovelSummary,
+  InspectIssue, HealthReport, ChapterComplianceResult, NovelSummary, TodoItem,
 } from "./types.ts";
 
 const J = { "Content-Type": "application/json" };
@@ -82,6 +82,34 @@ export async function postRevision(novelId: string, entry: RevisionEntry): Promi
   await fetch(`/api/novels/${novelId}/revisions`, {
     method: "POST", headers: J, body: JSON.stringify(entry),
   });
+}
+
+export async function createNovel(title: string, genre: string): Promise<Novel> {
+  const r = await fetch(`/api/novels`, {
+    method: "POST", headers: J, body: JSON.stringify({ title, genre }),
+  });
+  if (!r.ok) throw new Error("新建作品失败");
+  return r.json();
+}
+
+export async function addTodo(novelId: string, item: TodoItem): Promise<TodoItem[]> {
+  const r = await fetch(`/api/novels/${novelId}/todos`, {
+    method: "POST", headers: J, body: JSON.stringify(item),
+  });
+  if (!r.ok) throw new Error("加入待办失败");
+  return r.json();
+}
+
+export async function toggleTodo(novelId: string, todoId: string): Promise<TodoItem[]> {
+  const r = await fetch(`/api/novels/${novelId}/todos/${todoId}`, { method: "PATCH" });
+  if (!r.ok) throw new Error("更新待办失败");
+  return r.json();
+}
+
+export async function removeTodo(novelId: string, todoId: string): Promise<TodoItem[]> {
+  const r = await fetch(`/api/novels/${novelId}/todos/${todoId}`, { method: "DELETE" });
+  if (!r.ok) throw new Error("删除待办失败");
+  return r.json();
 }
 
 export interface StreamHandlers {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { Novel, AICredentials, ViewMode, RightTab, OverlayType, RevisionEntry } from "./types.ts";
-import { fetchNovel, saveChapter, createChapter, postRevision, revertChapter } from "./api.ts";
+import type { Novel, AICredentials, ViewMode, RightTab, OverlayType, RevisionEntry, TodoItem } from "./types.ts";
+import { fetchNovel, saveChapter, createChapter, postRevision, revertChapter, createNovel, addTodo, toggleTodo, removeTodo } from "./api.ts";
 import { loadCredentials, saveCredentials, hasCredentials } from "./prompt.ts";
 import { Topbar } from "./components/Topbar.tsx";
 import { ChapterList } from "./components/ChapterList.tsx";
@@ -17,10 +17,12 @@ import { PublishOverlay } from "./components/overlays/PublishOverlay.tsx";
 import { AnalyticsOverlay } from "./components/overlays/AnalyticsOverlay.tsx";
 import { BookshelfOverlay } from "./components/overlays/BookshelfOverlay.tsx";
 import { CharacterOverlay } from "./components/overlays/CharacterOverlay.tsx";
+import { TodoOverlay } from "./components/overlays/TodoOverlay.tsx";
 
-const NOVEL_ID = "n1";
+const DEFAULT_NOVEL_ID = "n1";
 
 export function App() {
+  const [novelId, setNovelId] = useState(DEFAULT_NOVEL_ID);
   const [novel, setNovel] = useState<Novel | null>(null);
   const [currentId, setCurrentId] = useState<string>("c42");
   const [creds, setCreds] = useState<AICredentials>(loadCredentials());
@@ -40,14 +42,14 @@ export function App() {
 
   // Load novel
   useEffect(() => {
-    fetchNovel(NOVEL_ID)
+    fetchNovel(novelId)
       .then((n) => {
         setNovel(n);
         const writing = n.chapters.find((c) => c.status === "writing");
-        if (writing) setCurrentId(writing.id);
+        setCurrentId(writing?.id ?? n.chapters[0]?.id ?? "");
       })
       .catch(() => showToast("无法连接后端，请确认 server 已启动"));
-  }, []);
+  }, [novelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // First-run: prompt for credentials
   useEffect(() => {
@@ -165,6 +167,61 @@ export function App() {
     setOverlay("character");
   }
 
+  const handleOpenNovel = useCallback((id: string) => {
+    setNovelId(id);
+    setOverlay(null);
+    setView("write");
+  }, []);
+
+  const handleCreateNovel = useCallback(async (title: string, genre: string) => {
+    try {
+      const n = await createNovel(title, genre);
+      setNovelId(n.id);
+      setOverlay(null);
+      setView("write");
+      showToast("已创建新作品：" + n.title);
+    } catch {
+      showToast("新建作品失败");
+    }
+  }, [showToast]);
+
+  const handleAddTodo = useCallback(async (text: string, detail: string, source: string) => {
+    if (!novel) return;
+    const entry: TodoItem = {
+      id: "td" + Date.now().toString(36),
+      text, detail, source,
+      createdAt: Date.now(),
+      done: false,
+    };
+    try {
+      const todos = await addTodo(novel.id, entry);
+      setNovel((prev) => prev ? { ...prev, todos } : prev);
+      showToast("已加入待办");
+    } catch {
+      showToast("加入待办失败");
+    }
+  }, [novel, showToast]);
+
+  const handleToggleTodo = useCallback(async (todoId: string) => {
+    if (!novel) return;
+    try {
+      const todos = await toggleTodo(novel.id, todoId);
+      setNovel((prev) => prev ? { ...prev, todos } : prev);
+    } catch {
+      showToast("更新待办失败");
+    }
+  }, [novel, showToast]);
+
+  const handleRemoveTodo = useCallback(async (todoId: string) => {
+    if (!novel) return;
+    try {
+      const todos = await removeTodo(novel.id, todoId);
+      setNovel((prev) => prev ? { ...prev, todos } : prev);
+    } catch {
+      showToast("删除待办失败");
+    }
+  }, [novel, showToast]);
+
   if (!novel) {
     return <div className="loading">加载中…</div>;
   }
@@ -181,6 +238,7 @@ export function App() {
         saveState={saveState}
         view={view}
         theme={theme}
+        todoCount={(novel.todos ?? []).filter((t) => !t.done).length}
         onViewChange={setView}
         onThemeToggle={() => setTheme((t) => t === "light" ? "dark" : "light")}
         onOpenSettings={() => setShowSettings(true)}
@@ -190,6 +248,7 @@ export function App() {
         onOpenPublish={() => setOverlay("publish")}
         onOpenAnalytics={() => setOverlay("analytics")}
         onOpenBookshelf={() => setOverlay("bookshelf")}
+        onOpenTodos={() => setOverlay("todos")}
       />
 
       <div className="body">
@@ -270,10 +329,11 @@ export function App() {
         <InspectOverlay
           novel={novel} credentials={creds} hasCreds={hasCredentials(creds)}
           onClose={() => setOverlay(null)} onToast={showToast}
+          onAddTodo={handleAddTodo}
         />
       )}
       {overlay === "health" && (
-        <HealthOverlay novel={novel} onClose={() => setOverlay(null)} onToast={showToast} />
+        <HealthOverlay novel={novel} onClose={() => setOverlay(null)} onToast={showToast} onAddTodo={handleAddTodo} />
       )}
       {overlay === "history" && (
         <HistoryOverlay
@@ -290,20 +350,28 @@ export function App() {
         />
       )}
       {overlay === "analytics" && (
-        <AnalyticsOverlay novel={novel} onClose={() => setOverlay(null)} onToast={showToast} />
+        <AnalyticsOverlay novel={novel} onClose={() => setOverlay(null)} onToast={showToast} onAddTodo={handleAddTodo} />
       )}
       {overlay === "bookshelf" && (
         <BookshelfOverlay
           novel={novel}
           onClose={() => setOverlay(null)}
-          onOpenNovel={() => setView("write")}
-          onToast={showToast}
+          onOpenNovel={handleOpenNovel}
+          onCreateNovel={handleCreateNovel}
         />
       )}
       {overlay === "character" && (
         <CharacterOverlay
           novel={novel} characterId={selectedCharId}
           onClose={() => setOverlay(null)} onToast={showToast}
+        />
+      )}
+      {overlay === "todos" && (
+        <TodoOverlay
+          novel={novel}
+          onClose={() => setOverlay(null)}
+          onToggle={handleToggleTodo}
+          onRemove={handleRemoveTodo}
         />
       )}
 

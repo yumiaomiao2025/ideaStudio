@@ -6,6 +6,7 @@ interface Props {
   saveState: string;
   view: ViewMode;
   theme: "light" | "dark";
+  todoCount: number;
   onViewChange: (v: ViewMode) => void;
   onThemeToggle: () => void;
   onOpenSettings: () => void;
@@ -15,6 +16,7 @@ interface Props {
   onOpenPublish: () => void;
   onOpenAnalytics: () => void;
   onOpenBookshelf: () => void;
+  onOpenTodos: () => void;
 }
 
 const VIEWS: { key: ViewMode; label: string }[] = [
@@ -25,10 +27,10 @@ const VIEWS: { key: ViewMode; label: string }[] = [
 
 export function Topbar({
   novelTitle, chapterLabel, saveState,
-  view, theme,
+  view, theme, todoCount,
   onViewChange, onThemeToggle, onOpenSettings,
   onOpenInspect, onOpenHealth, onOpenHistory,
-  onOpenPublish, onOpenAnalytics, onOpenBookshelf,
+  onOpenPublish, onOpenAnalytics, onOpenBookshelf, onOpenTodos,
 }: Props) {
   return (
     <div className="topbar">
@@ -53,6 +55,7 @@ export function Topbar({
         <button className="topbar-btn" onClick={onOpenInspect} title="AI 巡检">⚐ 巡检</button>
         <button className="topbar-btn" onClick={onOpenHealth} title="全书健康度">♥ 健康</button>
         <button className="topbar-btn" onClick={onOpenHistory} title="修订历史">⏱ 历史</button>
+        <button className="topbar-btn" onClick={onOpenTodos} title="待办清单">☑ 待办{todoCount > 0 ? ` (${todoCount})` : ""}</button>
         <button className="topbar-btn accent" onClick={onOpenPublish}>🪶 发布</button>
         <button className="topbar-btn" onClick={onOpenAnalytics}>📈 数据</button>
         <button className="topbar-btn" onClick={onThemeToggle}>{theme === "dark" ? "☀" : "☾"}</button>
