@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeRelations, extractVoiceSamples, computeHeatmap, computeTensionCurve, computeCharacterTracks, computeDialogueRatio } from "./derive.ts";
+import { computeRelations, extractVoiceSamples, computeHeatmap, computeTensionCurve, computeCharacterTracks, computeDialogueRatio, computeStyleMetrics, computeContextUsage } from "./derive.ts";
 import type { Novel, Character } from "./types.ts";
 
 function makeNovel(overrides: Partial<Novel> = {}): Novel {
@@ -156,5 +156,50 @@ describe("computeDialogueRatio", () => {
 
   it("returns 0 when there are no lines", () => {
     expect(computeDialogueRatio([])).toBe(0);
+  });
+});
+
+describe("computeStyleMetrics", () => {
+  it("computes average sentence length in characters, ignoring whitespace", () => {
+    // 两句：「四个字符」(4) 与「八个字符的句子」(7) → 平均 (4+7)/2 = 5.5 → 6
+    const m = computeStyleMetrics("四个字符。八个字符的句子！");
+    expect(m.avgSentenceLen).toBe(6);
+  });
+
+  it("computes dialogue / metaphor / passive ratios as 0-100 percentages over sentences", () => {
+    const body = '他说："你来了。"\n月光像水一样洒下。\n窗子被风吹开了。';
+    const m = computeStyleMetrics(body);
+    // 三句：1 句含对话引号、1 句含比喻词「像」、1 句含被动词「被」
+    expect(m.dialogueRatio).toBe(33);
+    expect(m.metaphorDensity).toBe(33);
+    expect(m.passiveRatio).toBe(33);
+  });
+
+  it("returns all-zero metrics for empty text", () => {
+    expect(computeStyleMetrics("")).toEqual({
+      avgSentenceLen: 0, dialogueRatio: 0, metaphorDensity: 0, passiveRatio: 0,
+    });
+  });
+});
+
+describe("computeContextUsage", () => {
+  it("splits usage into 正文/人物/设定/风格 by character count, normalized to percentages", () => {
+    const novel = makeNovel({
+      styleNotes: ["简洁"], // 风格 2 字
+      characters: [{ id: "ch1", name: "沈", role: "主", description: "", traits: [], firstChapter: 1, appearances: 1 }], // 人物 2 字
+      terms: [{ id: "t1", name: "剑", kind: "物", body: "", meta: "" }], // 设定 2 字
+    });
+    const chapter = { id: "c1", volumeId: "v1", num: 1, title: "", status: "writing" as const, updatedAt: 1, body: "六个字的正文" }; // 正文 6 字
+    const usage = computeContextUsage(novel, chapter);
+    const byLabel = Object.fromEntries(usage.map((u) => [u.label, u.pct]));
+    // 总 12 字：正文 6/12=50，人物/设定/风格各 2/12≈17
+    expect(byLabel["正文"]).toBe(50);
+    expect(byLabel["人物"]).toBe(17);
+    expect(usage.map((u) => u.label)).toEqual(["正文", "人物", "设定", "风格"]);
+  });
+
+  it("returns all-zero percentages when there is no content", () => {
+    const usage = computeContextUsage(makeNovel(), undefined);
+    expect(usage.every((u) => u.pct === 0)).toBe(true);
   });
 });

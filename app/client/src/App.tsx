@@ -292,6 +292,7 @@ export function App() {
         {view === "write" && (
           <RightPanel
             novel={novel}
+            chapter={chapter}
             tab={rightTab}
             onTabChange={setRightTab}
             onNovelUpdate={setNovel}

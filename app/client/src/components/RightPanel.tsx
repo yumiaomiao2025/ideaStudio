@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import type { Novel, Term, RightTab, ChapterComplianceResult } from "../types.ts";
+import type { Novel, Chapter, Term, RightTab, ChapterComplianceResult } from "../types.ts";
 import { upsertTerm, deleteTerm, fetchCompliance, saveChapter } from "../api.ts";
 import { SENSITIVE_REPLACEMENTS } from "../compliance.ts";
+import { computeContextUsage, computeStyleMetrics, extractVoiceSamples } from "../derive.ts";
 
 interface Props {
   novel: Novel;
+  chapter: Chapter | undefined;
   tab: RightTab;
   onTabChange: (t: RightTab) => void;
   onNovelUpdate: (n: Novel) => void;
@@ -21,7 +23,7 @@ const TABS: { key: RightTab; label: string }[] = [
   { key: "compliance", label: "⚖ 合规" },
 ];
 
-export function RightPanel({ novel, tab, onTabChange, onNovelUpdate, onToast, onCharacterClick }: Props) {
+export function RightPanel({ novel, chapter, tab, onTabChange, onNovelUpdate, onToast, onCharacterClick }: Props) {
   return (
     <aside className="right">
       <div className="right-tabs">
@@ -34,11 +36,11 @@ export function RightPanel({ novel, tab, onTabChange, onNovelUpdate, onToast, on
         ))}
       </div>
       <div className="right-body">
-        {tab === "context" && <ContextTab novel={novel} />}
+        {tab === "context" && <ContextTab novel={novel} chapter={chapter} />}
         {tab === "characters" && <CharactersTab novel={novel} onCharacterClick={onCharacterClick} />}
         {tab === "terms" && <TermsTab novel={novel} onNovelUpdate={onNovelUpdate} onToast={onToast} />}
         {tab === "foreshadow" && <ForeshadowTab novel={novel} />}
-        {tab === "style" && <StyleTab novel={novel} />}
+        {tab === "style" && <StyleTab novel={novel} chapter={chapter} />}
         {tab === "compliance" && <ComplianceTab novel={novel} onNovelUpdate={onNovelUpdate} onToast={onToast} />}
       </div>
     </aside>
@@ -46,13 +48,13 @@ export function RightPanel({ novel, tab, onTabChange, onNovelUpdate, onToast, on
 }
 
 /* ---- Context Tab ---- */
-function ContextTab({ novel }: { novel: Novel }) {
-  const bars = [
-    { label: "正文", pct: 55, color: "var(--accent)" },
-    { label: "人物", pct: 20, color: "var(--warm)" },
-    { label: "设定", pct: 15, color: "var(--blue)" },
-    { label: "风格", pct: 10, color: "var(--green)" },
-  ];
+const CTX_COLORS: Record<string, string> = {
+  正文: "var(--accent)", 人物: "var(--warm)", 设定: "var(--blue)", 风格: "var(--green)",
+};
+function ContextTab({ novel, chapter }: { novel: Novel; chapter: Chapter | undefined }) {
+  const bars = computeContextUsage(novel, chapter).map((u) => ({
+    label: u.label, pct: u.pct, color: CTX_COLORS[u.label],
+  }));
   return (
     <div>
       <div className="panel-section">
@@ -239,12 +241,13 @@ function ForeshadowTab({ novel }: { novel: Novel }) {
 }
 
 /* ---- Style Tab ---- */
-function StyleTab({ novel }: { novel: Novel }) {
+function StyleTab({ novel, chapter }: { novel: Novel; chapter: Chapter | undefined }) {
+  const sm = computeStyleMetrics(chapter?.body ?? "");
   const metrics = [
-    { label: "句长", value: 78, target: 70, unit: "字/句" },
-    { label: "对话占比", value: 32, target: 35, unit: "%" },
-    { label: "比喻密度", value: 45, target: 50, unit: "%" },
-    { label: "被动句", value: 12, target: 15, unit: "%" },
+    { label: "句长", value: sm.avgSentenceLen, target: 25, unit: "字/句" },
+    { label: "对话占比", value: sm.dialogueRatio, target: 35, unit: "%" },
+    { label: "比喻密度", value: sm.metaphorDensity, target: 15, unit: "%" },
+    { label: "被动句", value: sm.passiveRatio, target: 10, unit: "%" },
   ];
   return (
     <div>
@@ -272,14 +275,19 @@ function StyleTab({ novel }: { novel: Novel }) {
       </div>
       <div className="panel-section">
         <h5>人物语气样本</h5>
-        {novel.characters.slice(0, 2).map((ch) => (
-          <div key={ch.id} className="panel-card" style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginBottom: 4 }}>{ch.name}</div>
-            <div className="style-sample">
-              {ch.name === "沈砚" ? '"嗯。" 他转过身，没再说话。' : '"父亲今夜等的客，比昨日少了两个。"'}
+        {novel.characters.slice(0, 2).map((ch) => {
+          const samples = extractVoiceSamples(novel, ch, 1);
+          return (
+            <div key={ch.id} className="panel-card" style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginBottom: 4 }}>{ch.name}</div>
+              {samples.length > 0 ? (
+                <div className="style-sample">「{samples[0]}」</div>
+              ) : (
+                <div className="style-sample" style={{ color: "var(--ink-4)" }}>暂无台词样本</div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -96,3 +96,57 @@ export function computeDialogueRatio(chapters: Chapter[]): number {
   const dialogueLines = lines.filter((l) => /["「]/.test(l));
   return dialogueLines.length / lines.length;
 }
+
+export interface StyleMetrics {
+  avgSentenceLen: number;
+  dialogueRatio: number;
+  metaphorDensity: number;
+  passiveRatio: number;
+}
+
+const SENTENCE_SPLIT = /[。！？!?…\n]+/;
+const METAPHOR_MARKERS = /像|如|仿佛|似|犹如|宛如|好比/;
+
+export function computeStyleMetrics(body: string): StyleMetrics {
+  const sentences = body
+    .split(SENTENCE_SPLIT)
+    .map((s) => s.trim())
+    .filter((s) => s.replace(/["「」“”']/g, "").length > 0);
+  if (sentences.length === 0) {
+    return { avgSentenceLen: 0, dialogueRatio: 0, metaphorDensity: 0, passiveRatio: 0 };
+  }
+  const totalChars = sentences.reduce((sum, s) => sum + s.replace(/\s/g, "").length, 0);
+  const share = (n: number) => Math.round((n / sentences.length) * 100);
+  return {
+    avgSentenceLen: Math.round(totalChars / sentences.length),
+    dialogueRatio: share(sentences.filter((s) => /["「]/.test(s)).length),
+    metaphorDensity: share(sentences.filter((s) => METAPHOR_MARKERS.test(s)).length),
+    passiveRatio: share(sentences.filter((s) => /被/.test(s)).length),
+  };
+}
+
+export interface ContextUsage {
+  label: string;
+  pct: number;
+}
+
+export function computeContextUsage(novel: Novel, chapter: Chapter | undefined): ContextUsage[] {
+  const bodyLen = chapter?.body.length ?? 0;
+  const charLen = novel.characters.reduce(
+    (s, c) => s + c.name.length + c.role.length + c.description.length + c.traits.join("").length,
+    0
+  );
+  const termLen = novel.terms.reduce(
+    (s, t) => s + t.name.length + t.kind.length + t.body.length + (t.meta?.length ?? 0),
+    0
+  );
+  const styleLen = novel.styleNotes.reduce((s, n) => s + n.length, 0);
+  const buckets = [
+    { label: "正文", len: bodyLen },
+    { label: "人物", len: charLen },
+    { label: "设定", len: termLen },
+    { label: "风格", len: styleLen },
+  ];
+  const total = buckets.reduce((s, b) => s + b.len, 0);
+  return buckets.map((b) => ({ label: b.label, pct: total === 0 ? 0 : Math.round((b.len / total) * 100) }));
+}
