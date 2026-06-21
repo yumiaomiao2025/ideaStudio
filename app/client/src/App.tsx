@@ -226,10 +226,6 @@ export function App() {
     return <div className="loading">加载中…</div>;
   }
 
-  if (!chapter && view === "write") {
-    return <div className="loading">章节未找到</div>;
-  }
-
   return (
     <div id="app">
       <Topbar
@@ -276,6 +272,18 @@ export function App() {
             onNeedSettings={() => setShowSettings(true)}
             onRevision={handleRevision}
           />
+        )}
+        {view === "write" && !chapter && (
+          <div className="center">
+            <div className="empty-state">
+              <div className="empty-state-icon">✍</div>
+              <div className="empty-state-title">《{novel.title}》还没有章节</div>
+              <div className="empty-state-sub">创建第一章，开始你的故事</div>
+              <button className="btn-accent" onClick={() => handleCreate(novel.volumes[0]?.id ?? "vol1")}>
+                + 新建第一章
+              </button>
+            </div>
+          </div>
         )}
         {view === "kanban" && (
           <KanbanView
