@@ -230,7 +230,7 @@ export function App() {
     <div id="app">
       <Topbar
         novelTitle={novel.title}
-        chapterLabel={chapter ? `第 ${chapter.num} 章 · ${chapter.title}` : ""}
+        chapterLabel={chapter ? `第 ${chapter.num} 章 · ${chapter.title || "（待命名）"}` : ""}
         saveState={saveState}
         view={view}
         theme={theme}

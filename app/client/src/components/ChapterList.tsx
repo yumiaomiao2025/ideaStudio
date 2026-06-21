@@ -35,7 +35,7 @@ export function ChapterList({ novel, currentId, onSelect, onCreate }: Props) {
                   className={"chapter" + (c.id === currentId ? " current" : "")}
                   onClick={() => onSelect(c.id)}>
                   <span className="ch-num">{String(c.num).padStart(2, "0")}</span>
-                  <span className="ch-name">{c.title}</span>
+                  <span className="ch-name">{c.title || "（待命名）"}</span>
                   {STATUS_LABEL[c.status] && (
                     <span className={"ch-tag " + STATUS_CLS[c.status]}>
                       {STATUS_LABEL[c.status]}

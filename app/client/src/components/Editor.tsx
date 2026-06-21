@@ -342,7 +342,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
     <div className="center">
       <div className="editor-wrap" onClick={() => setTermPopover(null)}>
         <div className="editor" onClick={(e) => e.stopPropagation()}>
-          <h1 className="chapter-title">第 {chapter.num} 章 · {chapter.title}</h1>
+          <h1 className="chapter-title">第 {chapter.num} 章 · {chapter.title || "（待命名）"}</h1>
           <div className="chapter-sub">
             <span>{novel.title}</span>
             <span className="rule" />
